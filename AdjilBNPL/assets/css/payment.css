@@ -1,0 +1,263 @@
+/* Payment System Styles */
+:root {
+    --glass-bg: rgba(255, 255, 255, 0.05);
+    --glass-border: rgba(255, 255, 255, 0.1);
+    --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+    --input-bg: rgba(0, 0, 0, 0.3);
+    --primary-color: #2563eb;
+    --success-color: #10b981;
+    --error-color: #ef4444;
+}
+
+.payment-card-container {
+    background: radial-gradient(circle at top left, rgba(37,99,235,0.35), transparent 55%),
+                radial-gradient(circle at bottom right, rgba(14,165,233,0.25), transparent 55%),
+                linear-gradient(to bottom right, rgba(15,23,42,0.95), rgba(15,23,42,0.98));
+    backdrop-filter: blur(22px);
+    -webkit-backdrop-filter: blur(22px);
+    border: 1px solid rgba(148, 163, 184, 0.45);
+    border-radius: 28px;
+    padding: 2.5rem 2.25rem;
+    box-shadow: 0 30px 80px rgba(15, 23, 42, 0.9);
+    color: white;
+    max-width: 520px;
+    width: 100%;
+    margin: 0 auto;
+    position: relative;
+    overflow: hidden;
+}
+
+.payment-card-container::before {
+    content: '';
+    position: absolute;
+    inset: -40%;
+    background: conic-gradient(from 180deg, rgba(37,99,235,0.25), transparent, rgba(56,189,248,0.3), transparent);
+    opacity: 0.6;
+    filter: blur(40px);
+    z-index: -1;
+}
+
+.payment-card-container::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    pointer-events: none;
+}
+
+.payment-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.payment-header h3 {
+    font-size: 1.5rem;
+    font-weight: 800;
+    margin-bottom: 0.5rem;
+    background: linear-gradient(135deg, #fff, #a5b4fc);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.input-group {
+    position: relative;
+    margin-bottom: 1.5rem;
+}
+
+.input-group label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #94a3b8;
+    margin-bottom: 0.5rem;
+    transition: all 0.3s;
+}
+
+.input-wrapper {
+    position: relative;
+}
+
+.input-field {
+    width: 100%;
+    background: linear-gradient(to right, rgba(15,23,42,0.85), rgba(15,23,42,0.95));
+    border: 1px solid rgba(148,163,184,0.5);
+    border-radius: 999px;
+    padding: 1rem 1rem 1rem 3rem; /* Space for icon */
+    color: white;
+    font-family: 'Montserrat', monospace; /* Monospace for numbers */
+    font-size: 1rem;
+    transition: all 0.3s;
+    outline: none;
+}
+
+.input-field:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 1px rgba(59,130,246,0.8), 0 0 30px rgba(37,99,235,0.45);
+    background: linear-gradient(to right, rgba(15,23,42,0.9), rgba(15,23,42,1));
+}
+
+/* RTL Specifics */
+html[dir="rtl"] .input-field {
+    padding: 1rem 3rem 1rem 1rem;
+    text-align: right;
+}
+
+.input-icon {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    left: 1rem;
+    color: #64748b;
+    font-size: 1.2rem;
+    pointer-events: none;
+    transition: color 0.3s;
+}
+
+html[dir="rtl"] .input-icon {
+    left: auto;
+    right: 1rem;
+}
+
+.input-field:focus + .input-icon {
+    color: var(--primary-color);
+}
+
+.card-type-icon {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    right: 1rem;
+    width: 40px;
+    height: auto;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+html[dir="rtl"] .card-type-icon {
+    right: auto;
+    left: 1rem;
+}
+
+.card-type-icon.visible {
+    opacity: 1;
+}
+
+.row-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.pay-btn {
+    width: 100%;
+    background: radial-gradient(circle at 0% 0%, rgba(59,130,246,0.9), rgba(37,99,235,1));
+    color: white;
+    font-weight: 800;
+    padding: 1rem;
+    border-radius: 12px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.pay-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(37, 99, 235, 0.3);
+}
+
+.pay-btn:active {
+    transform: translateY(0);
+}
+
+.pay-btn:disabled {
+    background: #334155;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* Loader */
+.loader {
+    width: 20px;
+    height: 20px;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: white;
+    animation: spin 1s ease-in-out infinite;
+    display: none;
+}
+
+.pay-btn.processing .loader {
+    display: block;
+}
+
+.pay-btn.processing span {
+    opacity: 0.7;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Animations */
+.shake {
+    animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+}
+
+@keyframes shake {
+    10%, 90% { transform: translate3d(-1px, 0, 0); }
+    20%, 80% { transform: translate3d(2px, 0, 0); }
+    30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+    40%, 60% { transform: translate3d(4px, 0, 0); }
+}
+
+.success-message {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at top, rgba(34,197,94,0.14), transparent 55%), rgba(15, 23, 42, 0.96);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.5s;
+    z-index: 10;
+}
+
+.success-message.active {
+    opacity: 1;
+    pointer-events: all;
+}
+
+.checkmark-circle {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: var(--success-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1rem;
+    animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes popIn {
+    from { transform: scale(0); }
+    to { transform: scale(1); }
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+    .payment-card-container {
+        padding: 1.5rem;
+        border-radius: 20px;
+    }
+}

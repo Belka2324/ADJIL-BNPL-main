@@ -1,0 +1,26 @@
+{
+  "name": "Adjil BNPL",
+  "short_name": "Adjil",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#020617",
+  "theme_color": "#2563eb",
+  "orientation": "any",
+  "description": "منصة الدفع الآجل الأولى في الجزائر",
+  "id": "adjil-bnpl-pwa",
+  "categories": ["finance", "shopping"],
+  "icons": [
+    {
+      "src": "assets/Adjil logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "assets/Adjil logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

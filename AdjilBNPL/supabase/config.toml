@@ -1,0 +1,3 @@
+[functions]
+ignored_paths = ["node_modules", ".git", ".trae", "assets", "src"]
+
