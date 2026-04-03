@@ -442,7 +442,7 @@ const app = {
             expiry_date: "الانتهاء",
             premium_card: "بطاقة رقمية مميزة",
             hero_title: "اشترِ ما تريد، وادفع براحتك.",
-            hero_subtitle: "منصة آجل تمنحك رصيداً شهرياً يصل إلى 10,000 دج. تسوق من آلاف المتاجر وادفع لاحقاً باشتراك شهري بسيط.",
+            hero_subtitle: "منصة آجل تمنحك رصيداً شهرياً يصل إلى 25,000 دج. تسوق من آلاف المتاجر وادفع لاحقاً باشتراك شهري بسيط.",
             new_app: "جديد: تطبيق الهاتف متوفر الآن",
             how_it_works_title: "دليلك لاستخدام آجل",
             how_it_works_subtitle: "خطوات بسيطة تفتح لك آفاقاً جديدة للتسوق",
@@ -502,7 +502,7 @@ const app = {
             logout_confirm: "هل أنت متأكد من تسجيل الخروج؟",
             no_data: "لا توجد بيانات",
             invite_title: "آجل | اشترِ الآن وادفع لاحقاً",
-            invite_text: "انضم إلى آجل وتمتع برصيد تسوق فوري يصل إلى 10,000 دج!",
+            invite_text: "انضم إلى آجل وتمتع برصيد تسوق فوري يصل إلى 25,000 دج!",
             invite_copied: "تم نسخ رابط التحميل! يمكنك الآن إرساله لأصدقائك.",
             alt_shop: "تسوق",
             alt_scan: "مسح",
@@ -604,7 +604,7 @@ const app = {
             price_6months: "900",
             price_annual: "750",
             most_popular: "الأكثر طلباً",
-            credit_limit: "رصيد 10,000 دج",
+            credit_limit: "رصيد 25,000 دج",
             credit_limit_15: "رصيد يصل إلى 15,000 دج",
             credit_limit_25: "رصيد يصل إلى 25,000 دج",
             pay_30_days: "دفع آجل لمدة 30 يوم",
@@ -727,7 +727,7 @@ const app = {
             expiry_date: "Expire",
             premium_card: "Carte numérique Premium",
             hero_title: "Achetez ce que vous voulez, payez à votre aise.",
-            hero_subtitle: "Adjil vous offre un crédit mensuel allant jusqu'à 10 000 DZD. Achetez dans des milliers de magasins et payez plus tard avec un simple abonnement mensuel.",
+            hero_subtitle: "Adjil vous offre un crédit mensuel allant jusqu'à 25 000 DZD. Achetez dans des milliers de magasins et payez plus tard avec un simple abonnement mensuel.",
             new_app: "Nouveau : l'application mobile est disponible",
             how_it_works_title: "Votre guide pour utiliser Adjil",
             how_it_works_subtitle: "Des étapes simples qui vous ouvrent de nouveaux horizons de shopping",
@@ -818,7 +818,7 @@ const app = {
             logout_confirm: "Etes-vous sur de vouloir vous deconnecter ?",
             no_data: "Aucune donnee disponible",
             invite_title: "Adjil | Acheter maintenant, payer plus tard",
-            invite_text: "Rejoignez Adjil et obtenez un credit instantane jusqu'a 10 000 DZD !",
+            invite_text: "Rejoignez Adjil et obtenez un credit instantane jusqu'a 25 000 DZD !",
             invite_copied: "Lien de telechargement copie ! Vous pouvez maintenant l'envoyer a vos amis.",
             alt_shop: "Boutique",
             alt_scan: "Scanner",
@@ -929,7 +929,7 @@ const app = {
             price_6months: "900",
             price_annual: "750",
             most_popular: "Le plus populaire",
-            credit_limit: "Credit de 10 000 DZD",
+            credit_limit: "Credit de 25 000 DZD",
             credit_limit_15: "Credit jusqu'a 15 000 DZD",
             credit_limit_25: "Credit jusqu'a 25 000 DZD",
             pay_30_days: "Paiement differe de 30 jours",
@@ -1040,7 +1040,7 @@ const app = {
             expiry_date: "Expires",
             premium_card: "Premium Digital Card",
             hero_title: "Buy what you want, pay at your ease.",
-            hero_subtitle: "Adjil gives you a monthly credit up to 10,000 DZD. Shop from thousands of stores and pay later.",
+            hero_subtitle: "Adjil gives you a monthly credit up to 25,000 DZD. Shop from thousands of stores and pay later.",
             new_app: "New: Mobile app available now",
             how_it_works_title: "Your guide to using Adjil",
             how_it_works_subtitle: "Simple steps that open new shopping horizons",
@@ -1100,7 +1100,7 @@ const app = {
             logout_confirm: "Are you sure you want to logout?",
             no_data: "No data available",
             invite_title: "Adjil | Buy Now Pay Later",
-            invite_text: "Join Adjil and get instant credit up to 10,000 DZD!",
+            invite_text: "Join Adjil and get instant credit up to 25,000 DZD!",
             invite_copied: "Download link copied! You can now send it to your friends.",
             alt_shop: "Shop",
             alt_scan: "Scan",
@@ -1222,7 +1222,7 @@ const app = {
             price_6months: "900",
             price_annual: "750",
             most_popular: "Most Popular",
-            credit_limit: "10,000 DZD Credit",
+            credit_limit: "25,000 DZD Credit",
             credit_limit_15: "Credit up to 15,000 DZD",
             credit_limit_25: "Credit up to 25,000 DZD",
             pay_30_days: "30-day Payment",
@@ -2204,11 +2204,15 @@ const app = {
             if (planEl && amountEl) {
                 const plan = app.pendingPlan;
                 const price = plan === 'monthly' ? 500 : plan === '6months' ? 400 : 300;
+                const creditLimit = plan === 'monthly' ? 10000 : plan === '6months' ? 15000 : 25000;
                 const label = app.lang === 'ar' 
                     ? (plan === 'monthly' ? 'شهري' : plan === '6months' ? '6 أشهر' : 'سنوي')
+                    : app.lang === 'fr'
+                    ? (plan === 'monthly' ? 'Mensuel' : plan === '6months' ? '6 Mois' : 'Annuel')
                     : (plan === 'monthly' ? 'Monthly' : plan === '6months' ? '6 Months' : 'Annual');
                 planEl.textContent = label;
-                amountEl.textContent = `${price} دج`;
+                // Show credit limit instead of subscription price
+                amountEl.textContent = `${creditLimit.toLocaleString()} دج`;
             }
         }
 
@@ -2541,6 +2545,14 @@ const app = {
             alert(app.lang === 'ar' ? 'الحساب غير نشط' : 'Account is inactive');
             return;
         }
+        
+        // Check subscription plan for customer
+        if (app.user?.role === 'customer' && !app.user.subscription_plan) {
+            alert(app.lang === 'ar' ? 'يرجى تفعيل الاشتراك أولاً للدفع' : app.lang === 'fr' ? 'Veuillez activer votre abonnement d\'abord pour effectuer des paiements' : 'Please activate your subscription first to make payments');
+            router.navigate('/pricing');
+            return;
+        }
+        
         if (paymentAmount > app.user.balance) {
             alert(t.insufficient_balance);
             return;
@@ -2649,6 +2661,14 @@ const app = {
 
         if (!amount || amount <= 0) return alert(app.lang === 'ar' ? 'يرجى إدخال مبلغ صحيح' : 'Invalid Amount');
         if (app.user?.status && app.user.status !== 'active') return alert(app.lang === 'ar' ? 'الحساب غير نشط' : 'Account is inactive');
+        
+        // Check subscription plan for customer
+        if (app.user?.role === 'customer' && !app.user.subscription_plan) {
+            alert(app.lang === 'ar' ? 'يرجى تفعيل الاشتراك أولاً للدفع' : app.lang === 'fr' ? 'Veuillez activer votre abonnement d\'abord pour effectuer des paiements' : 'Please activate your subscription first to make payments');
+            router.navigate('/pricing');
+            return;
+        }
+        
         if (amount > app.user.balance) return alert(t.insufficient_balance);
 
         const idInput = document.getElementById('market-id');
@@ -3773,66 +3793,154 @@ const app = {
             router.navigate('/sub-confirm');
         }
     },
+    selectBankTypeForSub: (type) => {
+        const btnEdahabia = document.getElementById('sub-btn-edahabia');
+        const btnCcp = document.getElementById('sub-btn-ccp');
+        const btnCib = document.getElementById('sub-btn-cib');
+        const fields = document.getElementById('sub-bank-fields');
+        const edahabiaField = document.getElementById('sub-edahabia-fields');
+        const ccpField = document.getElementById('sub-ccp-fields');
+        const cibField = document.getElementById('sub-cib-fields');
+        
+        // Reset all buttons
+        btnEdahabia?.classList.replace('border-yellow-400', 'border-slate-700');
+        btnEdahabia?.classList.replace('text-yellow-400', 'text-slate-400');
+        btnCcp?.classList.replace('border-primary', 'border-slate-700');
+        btnCcp?.classList.replace('text-primary', 'text-slate-400');
+        btnCib?.classList.replace('border-green-400', 'border-slate-700');
+        btnCib?.classList.replace('text-green-400', 'text-slate-400');
+        
+        // Highlight selected
+        if (type === 'edahabia') {
+            btnEdahabia?.classList.replace('border-slate-700', 'border-yellow-400');
+            btnEdahabia?.classList.replace('text-slate-400', 'text-yellow-400');
+            edahabiaField?.classList.remove('hidden');
+            ccpField?.classList.add('hidden');
+            cibField?.classList.add('hidden');
+        } else if (type === 'ccp') {
+            btnCcp?.classList.replace('border-slate-700', 'border-primary');
+            btnCcp?.classList.replace('text-slate-400', 'text-primary');
+            edahabiaField?.classList.add('hidden');
+            ccpField?.classList.remove('hidden');
+            cibField?.classList.add('hidden');
+        } else if (type === 'cib') {
+            btnCib?.classList.replace('border-slate-700', 'border-green-400');
+            btnCib?.classList.replace('text-slate-400', 'text-green-400');
+            edahabiaField?.classList.add('hidden');
+            ccpField?.classList.add('hidden');
+            cibField?.classList.remove('hidden');
+        }
+        
+        fields?.classList.remove('hidden');
+        app.selectedBankType = type;
+    },
     confirmSubscription: async () => {
         if (!app.user || !app.pendingPlan) return;
+
+        // Validate bank details
+        const selectedType = app.selectedBankType;
+        if (!selectedType) {
+            alert(app.lang === 'ar' ? 'يرجى اختيار نوع الحساب البنكي أولاً' : app.lang === 'fr' ? 'Veuillez sélectionner un type de compte bancaire' : 'Please select a bank account type first');
+            return;
+        }
+
+        let bankDetails = {};
+        if (selectedType === 'edahabia') {
+            const edahabia = document.getElementById('sub-edahabia')?.value;
+            if (!edahabia || edahabia.length < 16) {
+                alert(app.lang === 'ar' ? 'يرجى إدخال رقم البطاقة الذهبية الصحيح' : app.lang === 'fr' ? 'Veuillez entrer le numéro de carte Edahabia correct' : 'Please enter a valid Edahabia card number');
+                return;
+            }
+            bankDetails = { edahabia, type: 'edahabia' };
+        } else if (selectedType === 'ccp') {
+            const rip = document.getElementById('sub-rip')?.value;
+            if (!rip || rip.length < 10) {
+                alert(app.lang === 'ar' ? 'يرجى إدخال رقم الحساب البريدي الصحيح' : app.lang === 'fr' ? 'Veuillez entrer le numéro RIP correct' : 'Please enter a valid RIP number');
+                return;
+            }
+            bankDetails = { rip, type: 'ccp' };
+        } else if (selectedType === 'cib') {
+            const rib = document.getElementById('sub-rib')?.value;
+            if (!rib || rib.length < 16) {
+                alert(app.lang === 'ar' ? 'يرجى إدخال رقم الحساب البنكي الصحيح' : app.lang === 'fr' ? 'Veuillez entrer le numéro RIB correct' : 'Please enter a valid RIB number');
+                return;
+            }
+            bankDetails = { rib, type: 'cib' };
+        }
 
         const btn = document.getElementById('btn-confirm-sub');
         const originalHtml = btn.innerHTML;
         btn.disabled = true;
-        btn.innerHTML = `<i class="fa-solid fa-circle-notch animate-spin"></i> ${app.lang === 'ar' ? 'جاري إرسال الطلب...' : 'Submitting request...'}`;
+        btn.innerHTML = `<i class="fa-solid fa-circle-notch animate-spin"></i> ${app.lang === 'ar' ? 'جاري التفعيل...' : app.lang === 'fr' ? 'Activation en cours...' : 'Activating...'}`;
 
         const plan = app.pendingPlan;
         const limit = plan === 'monthly' ? 10000 : plan === '6months' ? 15000 : 25000;
         
-        const requestData = {
-            user_id: app.user.id,
-            user_name: app.user.name,
-            user_email: app.user.email,
-            user_phone: app.user.phone,
-            plan: plan,
+        // Update user with subscription and bank details
+        const updates = {
+            subscription_plan: plan,
             credit_limit: limit,
-            status: 'pending'
+            balance: limit,
+            status: 'active',
+            bank_details: bankDetails
         };
+        
+        // Update local storage
+        app.user = { ...app.user, ...updates };
+        localStorage.setItem('adjil_session', JSON.stringify(app.user));
+        
+        // Update in local DB
+        const users = DB.get('users') || [];
+        const idx = users.findIndex(u => u.id === app.user.id);
+        if (idx >= 0) {
+            users[idx] = { ...users[idx], ...updates };
+            DB.set('users', users);
+        }
 
-        console.log('[App] Creating subscription request:', requestData);
-
-        // Try to create request in Supabase
+        // Update in Supabase if available
         if (window.supabaseClient) {
             try {
-                const { data, error } = await window.supabaseClient
-                    .from('subscription_requests')
-                    .insert(requestData)
-                    .select()
-                    .single();
+                // Update user record
+                await window.supabaseClient
+                    .from('users')
+                    .update({
+                        subscription_plan: plan,
+                        credit_limit: limit,
+                        balance: limit,
+                        status: 'active',
+                        bank_rib: bankDetails.rib || null,
+                        doc_rib: bankDetails.edahabia || bankDetails.rip || null
+                    })
+                    .eq('id', app.user.id);
                 
-                if (error) {
-                    console.error('[App] Supabase request error:', error);
-                    // Queue for later sync
-                    if (window.SyncService?.enqueue) {
-                        window.SyncService.enqueue({ 
-                            type: 'subscription_request', 
-                            payload: requestData 
-                        });
-                    }
-                } else {
-                    console.log('[App] Subscription request created:', data);
-                }
+                // Create subscription request record for history
+                await window.supabaseClient
+                    .from('subscription_requests')
+                    .insert({
+                        user_id: app.user.id,
+                        user_name: app.user.name,
+                        user_email: app.user.email,
+                        user_phone: app.user.phone,
+                        plan: plan,
+                        credit_limit: limit,
+                        status: 'approved',
+                        admin_notes: 'تم التفعيل مباشرة من قبل المستخدم'
+                    });
+                    
+                console.log('[App] Subscription activated in Supabase');
             } catch (err) {
-                console.error('[App] Supabase error:', err);
+                console.error('[App] Supabase update error:', err);
             }
-        } else {
-            // Local mode - save to local storage
-            const pendingRequests = JSON.parse(localStorage.getItem('pending_subscription_requests') || '[]');
-            pendingRequests.push({ ...requestData, id: 'REQ-' + Date.now() });
-            localStorage.setItem('pending_subscription_requests', JSON.stringify(pendingRequests));
         }
 
         app.pendingPlan = null;
         
         // Show success message
         const successMsg = app.lang === 'ar' 
-            ? 'تم إرسال طلب الاشتراك بنجاح! سيتم مراجعته من قبل الإدارة.'
-            : 'Subscription request submitted successfully! It will be reviewed by the admin.';
+            ? `تم تفعيل اشتراكك بنجاح! رصيدك الآن ${limit.toLocaleString()} دج`
+            : app.lang === 'fr'
+            ? `Votre abonnement est activé avec succès! Votre solde est maintenant de ${limit} DZD`
+            : `Your subscription is activated successfully! Your balance is now ${limit} DZD`;
         alert(successMsg);
         
         router.navigate('/dashboard');
