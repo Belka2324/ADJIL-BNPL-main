@@ -88,8 +88,16 @@ if (!window.AuthService) {
                         }
                     }
                 });
-                if (error) throw error;
+                if (error) {
+                    if (error.message.includes('already registered') || error.message.includes('already exists')) {
+                        throw new Error('User already exists');
+                    }
+                    throw error;
+                }
                 if (data.user) {
+                    if (data.user.identities && data.user.identities.length === 0) {
+                        throw new Error('User already exists');
+                    }
                     const user = {
                         id: data.user.id,
                         email: data.user.email,
@@ -110,7 +118,7 @@ if (!window.AuthService) {
             }
             // Fallback
             const users = JSON.parse(localStorage.getItem('adjil_users') || '[]');
-            if (users.some(u => u.email === payload.email || u.phone === payload.phone)) {
+            if (users.some(u => (u.email && u.email === payload.email) || (u.phone && u.phone === payload.phone))) {
                 throw new Error('User already exists');
             }
             const user = {
@@ -174,7 +182,7 @@ if (window.AuthService && typeof window.AuthService.demoSignIn !== 'function') {
 if (window.AuthService && typeof window.AuthService.signUp !== 'function') {
     window.AuthService.signUp = async (payload) => {
         const users = JSON.parse(localStorage.getItem('adjil_users') || '[]');
-        if (users.some(u => u.email === payload.email || u.phone === payload.phone)) {
+        if (users.some(u => (u.email && u.email === payload.email) || (u.phone && u.phone === payload.phone))) {
             throw new Error('User already exists');
         }
             const user = {
@@ -2086,16 +2094,63 @@ const app = {
                             <i class="fa-solid fa-bolt"></i>
                         </div>
                         <div>
-                            <h3 class="text-lg font-bold text-white">${app.lang === 'ar' ? 'قم بتفعيل رصيدك الآن' : 'Activate your credit now'}</h3>
-                            <p class="text-xs text-slate-400">${app.lang === 'ar' ? 'اختر باقة اشتراك للحصول على رصيدك الائتماني الفوري.' : 'Choose a subscription plan to get your instant credit limit.'}</p>
+                            <h3 class="text-lg font-bold text-white">${app.lang === 'ar' ? 'قم بتفعيل رصيدك الآن' : app.lang === 'fr' ? 'Activez votre crédit maintenant' : 'Activate your credit now'}</h3>
+                            <p class="text-xs text-slate-400">${app.lang === 'ar' ? 'اختر باقة اشتراك للحصول على رصيدك الائتماني الفوري.' : app.lang === 'fr' ? 'Choisissez un plan d\'abonnement pour obtenir votre crédit instantanément.' : 'Choose a subscription plan to get your instant credit limit.'}</p>
                         </div>
                     </div>
                     <button onclick="router.navigate('/pricing')" class="bg-primary hover:bg-blue-400 text-white px-8 py-3 rounded-xl font-bold transition-all shadow-lg shadow-primary/20">
-                        ${app.lang === 'ar' ? 'عرض الباقات المتاحة' : 'View Available Plans'}
+                        ${app.lang === 'ar' ? 'عرض الباقات المتاحة' : app.lang === 'fr' ? 'Voir les plans disponibles' : 'View Available Plans'}
                     </button>
                 `;
                 dashHeader.parentNode.insertBefore(banner, dashHeader.nextSibling);
             }
+        }
+
+        // Check if customer has pending subscription request
+        const checkPendingRequest = async () => {
+            if (window.supabaseClient && app.user?.id) {
+                try {
+                    const { data } = await window.supabaseClient
+                        .from('subscription_requests')
+                        .select('*')
+                        .eq('user_id', app.user.id)
+                        .eq('status', 'pending')
+                        .maybeSingle();
+                    
+                    if (data) {
+                        // Show pending status banner
+                        const container = document.getElementById('app');
+                        const dashHeader = container.querySelector('.flex.flex-col.md\\:flex-row.justify-between');
+                        if (dashHeader && !document.getElementById('pending-request-banner')) {
+                            const pendingBanner = document.createElement('div');
+                            pendingBanner.id = 'pending-request-banner';
+                            pendingBanner.className = 'bg-yellow-500/10 border border-yellow-500/20 p-6 rounded-[2rem] mb-8 flex flex-col md:flex-row items-center justify-between gap-6 animate-slide-up';
+                            pendingBanner.innerHTML = `
+                                <div class="flex items-center gap-4">
+                                    <div class="w-12 h-12 bg-yellow-500/20 text-yellow-400 rounded-full flex items-center justify-center text-xl">
+                                        <i class="fa-solid fa-clock"></i>
+                                    </div>
+                                    <div>
+                                        <h3 class="text-lg font-bold text-white">${app.lang === 'ar' ? 'طلبك قيد المراجعة' : app.lang === 'fr' ? 'Votre demande en cours de révision' : 'Your request is under review'}</h3>
+                                        <p class="text-xs text-slate-400">${app.lang === 'ar' ? 'طلب اشتراكك قيد الانتظار من طرف الإدارة. سيتم إشعارك فور التأكيد.' : app.lang === 'fr' ? 'Votre demande d\'abonnement est en attente d\'approbation. Vous serez notifié une fois examinée.' : 'Your subscription request is pending approval. You will be notified once reviewed.'}</p>
+                                    </div>
+                                </div>
+                                <button onclick="router.navigate('/dashboard')" class="bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400 px-8 py-3 rounded-xl font-bold transition-all border border-yellow-500/30">
+                                    ${app.lang === 'ar' ? 'عرض حالتي' : app.lang === 'fr' ? 'Vérifier le statut' : 'Check Status'}
+                                </button>
+                            `;
+                            dashHeader.parentNode.insertBefore(pendingBanner, dashHeader.nextSibling);
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Failed to check pending requests:', e);
+                }
+            }
+        };
+
+        // Only check for pending requests if no subscription plan
+        if (app.user.role === 'customer' && !app.user.subscription_plan) {
+            checkPendingRequest();
         }
 
         if (app.user.role === 'merchant') {
@@ -3243,8 +3298,9 @@ const app = {
 
             router.navigate('/dashboard');
         } catch (err) {
-            console.error(err);
-            alert('Error: ' + err.message);
+            console.error('Registration error:', err);
+            const msg = err.message || err;
+            alert(msg.includes('already exists') || msg.includes('already') ? (t.email_registered || 'Error: User already exists') : msg);
         } finally {
             if (btn) {
                 btn.disabled = false;
@@ -3701,9 +3757,9 @@ const app = {
                 .then(({ data }) => {
                     if (data) {
                         if (data.status === 'pending') {
-                            alert(app.lang === 'ar' ? 'لديك طلب اشتراك قيد الانتظار' : 'You have a pending subscription request');
+                            alert(app.lang === 'ar' ? 'لديك طلب اشتراك قيد الانتظار' : app.lang === 'fr' ? 'Vous avez une demande d\'abonnement en attente' : 'You have a pending subscription request');
                         } else if (data.status === 'approved') {
-                            alert(app.lang === 'ar' ? 'طلبك موافق عليه بالفعل، يرجى التحقق من لوحة التحكم' : 'Your request is already approved');
+                            alert(app.lang === 'ar' ? 'طلبك موافق عليه بالفعل، يرجى التحقق من لوحة التحكم' : app.lang === 'fr' ? 'Votre demande est déjà approuvée, veuillez vérifier votre tableau de bord' : 'Your request is already approved');
                         }
                         return;
                     }
@@ -5061,6 +5117,47 @@ if (document.readyState === 'loading') {
 } else {
     app.init();
 }
+
+// Listen for real-time subscription updates
+window.addEventListener('adjil:subscription:activated', (e) => {
+    console.log('[App] Subscription activated:', e.detail);
+    if (app.user && e.detail) {
+        app.user = { ...app.user, ...e.detail };
+        localStorage.setItem('adjil_session', JSON.stringify(app.user));
+        
+        // Show success notification
+        const lang = app.lang || 'ar';
+        const msg = lang === 'ar' ? 'تم تفعيل اشتراكك بنجاح! رصيدك الآن ' + (e.detail.credit_limit || e.detail.balance) + ' دج' 
+            : lang === 'fr' ? 'Votre abonnement est maintenant actif! Votre solde est ' + (e.detail.credit_limit || e.detail.balance) + ' DZD'
+            : 'Your subscription is now active! Your balance is ' + (e.detail.credit_limit || e.detail.balance) + ' DZD';
+        alert(msg);
+        
+        // Refresh dashboard
+        router.navigate('/dashboard');
+    }
+});
+
+window.addEventListener('adjil:subscription:updated', (e) => {
+    console.log('[App] Subscription updated:', e.detail);
+    // Could show a toast notification here
+});
+
+window.addEventListener('adjil:users:updated', () => {
+    console.log('[App] Users updated, refreshing session...');
+    if (app.user && window.supabaseClient) {
+        window.supabaseClient
+            .from('users')
+            .select('*')
+            .eq('id', app.user.id)
+            .single()
+            .then(({ data }) => {
+                if (data) {
+                    app.user = { ...app.user, ...data };
+                    localStorage.setItem('adjil_session', JSON.stringify(app.user));
+                }
+            });
+    }
+});
 
 window.resetFreeze = () => {
     localStorage.removeItem('adjil_frozen');

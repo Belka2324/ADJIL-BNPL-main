@@ -223,7 +223,7 @@
             console.warn('[Auth] Falling back to local signup');
             try {
                 const localUsers = DataHelper.safeParse(CONFIG.STORAGE_KEYS.USERS, []);
-                if (localUsers.some(u => u.email === userData.email || u.phone === userData.phone)) {
+                if (localUsers.some(u => (u.email && u.email === userData.email) || (u.phone && u.phone === userData.phone))) {
                     throw new Error('User already exists');
                 }
                 const localUser = {
@@ -405,7 +405,10 @@
                                     window.dispatchEvent(new CustomEvent('adjil:subscription:activated', { detail: updates }));
                                     
                                     const lang = app.lang || 'ar';
-                                    alert(lang === 'ar' ? 'تم تفعيل اشتراكك! رصيدك الآن ' + limit + ' دج' : 'Your subscription is now active! Your balance is ' + limit + ' DZD');
+                                    const msg = lang === 'ar' ? 'تم تفعيل اشتراكك! رصيدك الآن ' + limit + ' دج' 
+                                        : lang === 'fr' ? 'Votre abonnement est maintenant actif! Votre solde est ' + limit + ' DZD'
+                                        : 'Your subscription is now active! Your balance is ' + limit + ' DZD';
+                                    alert(msg);
                                     router.navigate('/dashboard');
                                 }
                             }

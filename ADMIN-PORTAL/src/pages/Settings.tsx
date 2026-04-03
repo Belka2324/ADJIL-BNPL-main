@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { getSession } from '../lib/storage'
 import { supabase, hasSupabase } from '../lib/supabase'
 import { UserRecord } from '../lib/types'
+import { createStaff } from '../lib/data'
 
 export default function Settings() {
   const [activeTab, setActiveTab] = useState<'general' | 'team' | 'create' | 'account'>('account')
@@ -123,34 +124,23 @@ export default function Settings() {
     
     if (hasSupabase && supabase) {
       try {
-        // Create auth user via signUp
-        // Note: This will log the current admin out in most Supabase configurations
-        // unless an Edge Function with service_role is used.
-        const { data, error } = await supabase.auth.signUp({
+        await createStaff({
           email: newEmail,
           password: newPassword,
-          options: {
-            data: {
-              name: newName,
-              username: newUsername,
-              role: newRole
-            }
-          }
+          full_name: newName,
+          username: newUsername,
+          role: newRole
         })
         
-        if (error) throw error
+        alert('تم إنشاء الحساب بنجاح!')
         
-        alert('تم إنشاء الحساب بنجاح! سيتم تسجيل خروجك الآن لتفعيل الحساب.')
-        
-        // Clear form and session
+        // Clear form
         setNewEmail('')
         setNewPassword('')
         setNewUsername('')
         setNewName('')
         setNewRole('support')
         
-        localStorage.removeItem('adjil_admin_session')
-        window.location.href = '/login'
       } catch (err: any) {
         console.error('Error creating team member:', err)
         alert('خطأ في إنشاء الحساب: ' + (err.message || 'فشل الاتصال'))

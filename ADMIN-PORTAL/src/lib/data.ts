@@ -265,7 +265,26 @@ export const createStaffViaFunction = async (payload: {
   const [firstName, ...lastNameParts] = payload.full_name.trim().split(/\s+/)
   const lastName = lastNameParts.join(' ')
 
-  const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+  // Create a temporary Supabase client that doesn't persist the session
+  // This prevents the current admin from being logged out when creating a new user
+  const envUrl = (import.meta.env.NEXT_PUBLIC_SUPABASE_URL as string | undefined) ||
+                 (import.meta.env.VITE_SUPABASE_URL as string | undefined)
+  const envKey = (import.meta.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string | undefined) ||
+                 (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined)
+  
+  let signUpClient = supabase
+  if (envUrl && envKey) {
+    const { createClient } = await import('@supabase/supabase-js')
+    signUpClient = createClient(envUrl, envKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false
+      }
+    })
+  }
+
+  const { data: signUpData, error: signUpError } = await signUpClient.auth.signUp({
     email: payload.email,
     password: payload.password,
     options: {
@@ -443,19 +462,55 @@ export const createTeamMember = async (member: {
   username: string
 }): Promise<void> => {
   if (hasSupabase && supabase) {
-    const { error } = await supabase
+    // First, try to create auth user via signUp
+    let userId = ''
+    
+    try {
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email: member.email,
+        password: member.password,
+        options: {
+          data: {
+            name: member.name,
+            username: member.username,
+            role: member.role
+          }
+        }
+      })
+      
+      if (!signUpError && signUpData?.user) {
+        userId = signUpData.user.id
+      } else if (signUpError && signUpError.message.includes('already registered')) {
+        // User already exists, get their ID
+        const { data: existingUser } = await supabase
+          .from('users')
+          .select('id')
+          .eq('email', member.email)
+          .maybeSingle()
+        userId = existingUser?.id || ''
+      }
+    } catch (authError) {
+      console.warn('Auth signup failed, trying direct user creation:', authError)
+    }
+
+    // Create user in users table
+    const { error: userError } = await supabase
       .from('users')
-      .insert({
+      .upsert({
+        id: userId || undefined,
         name: member.name,
         email: member.email,
+        username: member.username,
         role: member.role,
         status: 'active'
-      })
+      }, { onConflict: 'email' })
     
-    if (error) {
-      console.error('Error creating team member:', error)
-      throw error
+    if (userError) {
+      console.error('Error creating team member:', userError)
+      throw userError
     }
+    
+    clearCache()
   }
 }
 
@@ -849,12 +904,13 @@ export const approveSubscriptionRequest = async (requestId: string, adminNotes?:
 
     if (updateError) throw updateError
 
-    // Update user's subscription_plan and credit_limit
+    // Update user's subscription_plan, credit_limit, balance and status
     const { error: userError } = await supabase
       .from('users')
       .update({
         subscription_plan: request.plan,
         credit_limit: request.credit_limit,
+        balance: request.credit_limit,
         status: 'active'
       })
       .eq('id', request.user_id)
