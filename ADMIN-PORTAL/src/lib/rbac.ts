@@ -12,6 +12,7 @@ export const roleAccess: Record<Role, string[]> = {
     'users',
     'merchants',
     'transactions',
+    'subscription_requests',
     'blacklist',
     'frozen',
     'complaints',
@@ -25,6 +26,7 @@ export const roleAccess: Record<Role, string[]> = {
     'users',
     'merchants',
     'transactions',
+    'subscription_requests',
     'blacklist',
     'frozen',
     'complaints',
@@ -38,7 +40,7 @@ export const roleAccess: Record<Role, string[]> = {
   // Support can see users, merchants, complaints
   support: ['overview', 'users', 'merchants', 'complaints'],
   // Admin role (same as administrator)
-  admin: ['overview', 'users', 'merchants', 'transactions', 'blacklist', 'frozen', 'complaints', 'invoices', 'audit', 'settings', 'team'],
+  admin: ['overview', 'users', 'merchants', 'transactions', 'subscription_requests', 'blacklist', 'frozen', 'complaints', 'invoices', 'audit', 'settings', 'team'],
   // Customer role (limited access)
   customer: ['overview'],
   // Merchant role (limited access)
@@ -50,6 +52,7 @@ export const navItems: NavItem[] = [
   { key: 'merchants', label: 'التجار / Marchands / Merchants', path: '/dashboard/merchants' },
   { key: 'users', label: 'الزبائن / Clients / Customers', path: '/dashboard/users' },
   { key: 'transactions', label: 'العمليات / Opérations / Transactions', path: '/dashboard/transactions' },
+  { key: 'subscription_requests', label: 'طلبات الاشتراك / Abonnements / Subscriptions', path: '/dashboard/subscriptions' },
   { key: 'blacklist', label: 'القائمة السوداء / Blacklist / Blacklist', path: '/dashboard/blacklist' },
   { key: 'frozen', label: 'حسابات مجمدة / Comptes gelés / Frozen', path: '/dashboard/frozen' },
   { key: 'complaints', label: 'الشكاوي / Réclamations / Complaints', path: '/dashboard/complaints' },

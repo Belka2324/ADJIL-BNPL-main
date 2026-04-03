@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Users, Store, CreditCard, Ban, Snowflake, MessageSquare, Settings, FileText, Activity, UsersRound } from 'lucide-react'
+import { LayoutDashboard, Users, Store, CreditCard, Ban, Snowflake, MessageSquare, Settings, FileText, Activity, UsersRound, Sparkles } from 'lucide-react'
 import { navItems, roleAccess } from '../lib/rbac'
 import { Role } from '../lib/types'
 import clsx from 'clsx'
@@ -13,6 +13,7 @@ const icons: Record<string, any> = {
   users: Users,
   merchants: Store,
   transactions: CreditCard,
+  subscription_requests: Sparkles,
   blacklist: Ban,
   frozen: Snowflake,
   complaints: MessageSquare,

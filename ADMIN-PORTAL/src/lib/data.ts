@@ -1,4 +1,4 @@
-import { AccountState, CustomerRecord, Institution, MerchantRecord, StaffRecord, TicketRecord, TransactionRecord, UserRecord } from './types'
+import { AccountState, CustomerRecord, Institution, MerchantRecord, StaffRecord, TicketRecord, TransactionRecord, UserRecord, SubscriptionRequestRecord } from './types'
 import { supabase, hasSupabase } from './supabase'
 
 const CACHE_KEYS = {
@@ -680,3 +680,80 @@ const getDemoStaff = (): StaffRecord[] => [
     messages_count: 4
   }
 ]
+
+// ============================================
+// Subscription Requests Functions
+// ============================================
+
+export const fetchSubscriptionRequests = async (): Promise<SubscriptionRequestRecord[]> => {
+  const cached = getCached<SubscriptionRequestRecord[]>(CACHE_KEYS.users + '_subscriptions')
+  if (cached) return cached
+
+  if (hasSupabase && supabase) {
+    const { data, error } = await supabase
+      .from('subscription_requests')
+      .select('*')
+      .order('created_at', { ascending: false })
+
+    if (error) throw error
+    setCache(CACHE_KEYS.users + '_subscriptions', data || [])
+    return (data || []) as SubscriptionRequestRecord[]
+  }
+
+  return []
+}
+
+export const approveSubscriptionRequest = async (requestId: string, adminNotes?: string): Promise<void> => {
+  if (hasSupabase && supabase) {
+    // Get the request to find user_id and credit_limit
+    const { data: request } = await supabase
+      .from('subscription_requests')
+      .select('*')
+      .eq('id', requestId)
+      .single()
+
+    if (!request) throw new Error('Request not found')
+
+    // Update request status to approved
+    const { error: updateError } = await supabase
+      .from('subscription_requests')
+      .update({
+        status: 'approved',
+        admin_notes: adminNotes || null,
+        reviewed_at: new Date().toISOString()
+      })
+      .eq('id', requestId)
+
+    if (updateError) throw updateError
+
+    // Update user's subscription_plan and credit_limit
+    const { error: userError } = await supabase
+      .from('users')
+      .update({
+        subscription_plan: request.plan,
+        credit_limit: request.credit_limit,
+        status: 'active'
+      })
+      .eq('id', request.user_id)
+
+    if (userError) throw userError
+
+    clearCache()
+  }
+}
+
+export const rejectSubscriptionRequest = async (requestId: string, adminNotes?: string): Promise<void> => {
+  if (hasSupabase && supabase) {
+    const { error } = await supabase
+      .from('subscription_requests')
+      .update({
+        status: 'rejected',
+        admin_notes: adminNotes || null,
+        reviewed_at: new Date().toISOString()
+      })
+      .eq('id', requestId)
+
+    if (error) throw error
+    clearCache()
+  }
+}

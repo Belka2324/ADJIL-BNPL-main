@@ -158,3 +158,19 @@ export type Institution = {
   logo: string
   code: string
 }
+
+export type SubscriptionRequestRecord = {
+  id: string
+  created_at: string
+  updated_at: string
+  user_id: string
+  user_name: string
+  user_email: string
+  user_phone: string
+  plan: 'monthly' | '6months' | 'annual'
+  credit_limit: number
+  status: 'pending' | 'approved' | 'rejected' | 'cancelled'
+  admin_notes: string
+  reviewed_by: string
+  reviewed_at: string
+}

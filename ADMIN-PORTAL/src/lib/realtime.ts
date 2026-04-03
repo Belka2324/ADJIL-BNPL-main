@@ -2,7 +2,7 @@ import { supabase } from './supabase'
 
 type Unsubscribe = () => void
 
-type RealtimeTable = 'profiles' | 'transactions' | 'staff' | 'users' | 'tickets'
+type RealtimeTable = 'profiles' | 'transactions' | 'staff' | 'users' | 'tickets' | 'subscription_requests'
 
 export const subscribeTable = (
   table: RealtimeTable,

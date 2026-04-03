@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard'
 import Users from './pages/Users'
 import Merchants from './pages/Merchants'
 import Transactions from './pages/Transactions'
+import Subscriptions from './pages/Subscriptions'
 import Blacklist from './pages/Blacklist'
 import Frozen from './pages/Frozen'
 import Complaints from './pages/Complaints'
@@ -45,6 +46,7 @@ export default function App() {
       <Route path="/dashboard/users" element={allow('users') ? shell(<Users isAdmin={session?.role === 'administrator' || session?.role === 'admin' || session?.isCEO === true} />) : <Navigate to="/dashboard" replace />} />
       <Route path="/dashboard/merchants" element={allow('merchants') ? shell(<Merchants isAdmin={session?.role === 'administrator' || session?.role === 'admin' || session?.isCEO === true} />) : <Navigate to="/dashboard" replace />} />
       <Route path="/dashboard/transactions" element={allow('transactions') ? shell(<Transactions />) : <Navigate to="/dashboard" replace />} />
+      <Route path="/dashboard/subscriptions" element={allow('subscription_requests') ? shell(<Subscriptions />) : <Navigate to="/dashboard" replace />} />
       <Route path="/dashboard/blacklist" element={allow('blacklist') ? shell(<Blacklist />) : <Navigate to="/dashboard" replace />} />
       <Route path="/dashboard/frozen" element={allow('frozen') ? shell(<Frozen isAdmin={session?.role === 'administrator' || session?.role === 'admin' || session?.isCEO === true} />) : <Navigate to="/dashboard" replace />} />
       <Route path="/dashboard/complaints" element={allow('complaints') ? shell(<Complaints />) : <Navigate to="/dashboard" replace />} />
