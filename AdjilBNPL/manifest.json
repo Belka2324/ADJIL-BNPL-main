@@ -1,26 +1,77 @@
 {
-  "name": "Adjil BNPL",
-  "short_name": "Adjil",
+  "name": "ADJIL Buy Now Pay Later",
+  "short_name": "ADJIL",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#020617",
-  "theme_color": "#2563eb",
-  "orientation": "any",
-  "description": "منصة الدفع الآجل الأولى في الجزائر",
+  "theme_color": "#10b981",
+  "orientation": "portrait-primary",
+  "description": "منصة الدفع الآجل الأولى في الجزائر - Buy Now Pay Later",
   "id": "adjil-bnpl-pwa",
   "categories": ["finance", "shopping"],
   "icons": [
     {
       "src": "assets/Adjil logo.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/Adjil logo.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/Adjil logo.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/Adjil logo.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/Adjil logo.png",
+      "sizes": "152x152",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/Adjil logo.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "assets/Adjil logo.png",
+      "sizes": "384x384",
+      "type": "image/png",
+      "purpose": "any"
     },
     {
       "src": "assets/Adjil logo.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    }
+  ],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "الدفع الآن",
+      "short_name": "دفع",
+      "description": "ادفع باستخدام QR",
+      "url": "./index.html?action=pay"
+    },
+    {
+      "name": "حسابي",
+      "short_name": "حسابي",
+      "description": "عرض الرصيد والمعاملات",
+      "url": "./index.html?action=account"
     }
   ]
 }

@@ -198,8 +198,36 @@ body { font-family: 'Cairo', sans-serif; }
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    padding: 2.5rem;
+    padding: 1.5rem;
     transform-style: preserve-3d;
+}
+
+@media (max-width: 640px) {
+    .digital-card {
+        padding: 1.25rem;
+        border-radius: 1.5rem;
+    }
+    .digital-card .text-5xl {
+        font-size: 2.25rem;
+    }
+    .digital-card .text-lg {
+        font-size: 0.875rem;
+    }
+    .digital-card .text-base {
+        font-size: 0.75rem;
+    }
+    .digital-card .text-\\[9px\\] {
+        font-size: 0.65rem;
+    }
+    .digital-card .text-\\[10px\\] {
+        font-size: 0.7rem;
+    }
+    .digital-card .tracking-\\[0\\.2em\\] {
+        letter-spacing: 0.1em;
+    }
+    .digital-card .tracking-widest {
+        letter-spacing: 0.05em;
+    }
 }
 
 .digital-card::before {
@@ -532,6 +560,26 @@ body { font-family: 'Cairo', sans-serif; }
         width: 28px;
         height: 28px;
         font-size: 14px;
+    }
+    
+    /* Mobile Nav Fix */
+    nav .flex.items-center.justify-between.h-16 {
+        flex-wrap: wrap;
+        min-height: 4rem;
+        padding: 0.5rem 0;
+    }
+    nav .flex.items-center.gap-4 {
+        flex-shrink: 0;
+    }
+    #authBtn {
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
+    }
+    #authBtn i {
+        display: none;
+    }
+    #authBtn span {
+        font-size: 0.75rem;
     }
 }
 

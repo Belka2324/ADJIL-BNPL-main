@@ -24,11 +24,14 @@ window.tailwind.config = {
 if (!window.AuthService) {
     window.AuthService = {
         async login(identifier, password) {
+            // Try Supabase Auth first
             if (window.supabaseClient) {
                 const { data, error } = await window.supabaseClient.auth.signInWithPassword({
                     email: identifier,
                     password: password
                 });
+                
+                // If Supabase login succeeds
                 if (!error && data.user) {
                     const { data: userData } = await window.supabaseClient
                         .from('users')
@@ -42,7 +45,7 @@ if (!window.AuthService) {
                         role: 'customer'
                     };
 
-                    const allowedRoles = ['customer', 'merchant'];
+                    const allowedRoles = ['customer', 'merchant', 'admin'];
                     if (!allowedRoles.includes(sessionUser.role)) {
                         await window.supabaseClient.auth.signOut();
                         throw new Error('role_not_allowed');
@@ -51,8 +54,15 @@ if (!window.AuthService) {
                     localStorage.setItem('adjil_session', JSON.stringify(sessionUser));
                     return sessionUser;
                 }
+                
+                // If Supabase fails with "Invalid credentials", try localStorage fallback
+                // Otherwise, throw the error
+                if (error && !error.message.includes('Invalid login credentials')) {
+                    throw error;
+                }
             }
-            // Fallback to LocalStorage for offline/demo
+            
+            // Fallback to LocalStorage for offline/demo (seed data users)
             const users = JSON.parse(localStorage.getItem('adjil_users') || '[]');
             const user = users.find(u => (u.email === identifier || u.phone === identifier) && u.password === password);
             if (user) {
@@ -3403,9 +3413,38 @@ const app = {
             return;
         }
         
-        // Save the plan temporarily in session or state
-        app.pendingPlan = plan;
-        router.navigate('/sub-confirm');
+        // If user already has an active subscription, don't allow new request
+        if (app.user.subscription_plan && app.user.status === 'active') {
+            alert(app.lang === 'ar' ? 'لديك اشتراك نشط بالفعل' : 'You already have an active subscription');
+            return;
+        }
+        
+        // Check for pending requests
+        if (window.supabaseClient) {
+            window.supabaseClient
+                .from('subscription_requests')
+                .select('*')
+                .eq('user_id', app.user.id)
+                .in('status', ['pending', 'approved'])
+                .maybeSingle()
+                .then(({ data }) => {
+                    if (data) {
+                        if (data.status === 'pending') {
+                            alert(app.lang === 'ar' ? 'لديك طلب اشتراك قيد الانتظار' : 'You have a pending subscription request');
+                        } else if (data.status === 'approved') {
+                            alert(app.lang === 'ar' ? 'طلبك موافق عليه بالفعل، يرجى التحقق من لوحة التحكم' : 'Your request is already approved');
+                        }
+                        return;
+                    }
+                    // No pending/approved request, proceed
+                    app.pendingPlan = plan;
+                    router.navigate('/sub-confirm');
+                });
+        } else {
+            // Fallback for local mode
+            app.pendingPlan = plan;
+            router.navigate('/sub-confirm');
+        }
     },
     confirmSubscription: async () => {
         if (!app.user || !app.pendingPlan) return;
@@ -3413,62 +3452,66 @@ const app = {
         const btn = document.getElementById('btn-confirm-sub');
         const originalHtml = btn.innerHTML;
         btn.disabled = true;
-        btn.innerHTML = `<i class="fa-solid fa-circle-notch animate-spin"></i> جاري الاقتطاع...`;
+        btn.innerHTML = `<i class="fa-solid fa-circle-notch animate-spin"></i> ${app.lang === 'ar' ? 'جاري إرسال الطلب...' : 'Submitting request...'}`;
 
         const plan = app.pendingPlan;
         const limit = plan === 'monthly' ? 10000 : plan === '6months' ? 15000 : 25000;
         
-        // Simulate external payment processing (Gold/Bank card)
-        await new Promise(r => setTimeout(r, 2000));
-
-        const updates = {
-            status: 'active',
-            subscription_plan: plan,
+        const requestData = {
+            user_id: app.user.id,
+            user_name: app.user.name,
+            user_email: app.user.email,
+            user_phone: app.user.phone,
+            plan: plan,
             credit_limit: limit,
-            balance: limit
+            status: 'pending'
         };
 
-        console.log('[App] Activating subscription:', { plan, limit, updates });
+        console.log('[App] Creating subscription request:', requestData);
 
-        // Update locally first
-        const users = DB.get('users') || [];
-        const idx = users.findIndex(u => u.id === app.user.id);
-        if (idx >= 0) {
-            users[idx] = { ...users[idx], ...updates };
-            DB.set('users', users);
-            app.user = users[idx];
-            localStorage.setItem('adjil_session', JSON.stringify(app.user));
-            console.log('[App] Subscription activated locally');
-        }
-
-        // Try to sync with Supabase
+        // Try to create request in Supabase
         if (window.supabaseClient) {
             try {
-                const { error } = await window.supabaseClient
-                    .from('users')
-                    .update(updates)
-                    .eq('id', app.user.id);
+                const { data, error } = await window.supabaseClient
+                    .from('subscription_requests')
+                    .insert(requestData)
+                    .select()
+                    .single();
                 
                 if (error) {
-                    console.error('[App] Supabase update error:', error);
+                    console.error('[App] Supabase request error:', error);
                     // Queue for later sync
                     if (window.SyncService?.enqueue) {
                         window.SyncService.enqueue({ 
-                            type: 'user_update', 
-                            payload: { id: app.user.id, updates } 
+                            type: 'subscription_request', 
+                            payload: requestData 
                         });
                     }
                 } else {
-                    console.log('[App] Subscription synced to Supabase');
+                    console.log('[App] Subscription request created:', data);
                 }
             } catch (err) {
-                console.error('[App] Supabase sync error:', err);
+                console.error('[App] Supabase error:', err);
             }
+        } else {
+            // Local mode - save to local storage
+            const pendingRequests = JSON.parse(localStorage.getItem('pending_subscription_requests') || '[]');
+            pendingRequests.push({ ...requestData, id: 'REQ-' + Date.now() });
+            localStorage.setItem('pending_subscription_requests', JSON.stringify(pendingRequests));
         }
 
         app.pendingPlan = null;
-        alert(app.lang === 'ar' ? 'تم تفعيل الاشتراك والائتمان بنجاح!' : 'Subscription and credit activated successfully!');
+        
+        // Show success message
+        const successMsg = app.lang === 'ar' 
+            ? 'تم إرسال طلب الاشتراك بنجاح! سيتم مراجعته من قبل الإدارة.'
+            : 'Subscription request submitted successfully! It will be reviewed by the admin.';
+        alert(successMsg);
+        
         router.navigate('/dashboard');
+        
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
     },
     toggleDashView: (view) => {
         const isMerchant = app.user?.role === 'merchant';
@@ -4758,6 +4801,25 @@ window.resetFreeze = () => {
     const BANNER_SESSION_KEY = 'adjil_app_banner_session_shown';
     const BANNER_DELAY = 1500;
 
+    let deferredPrompt = null;
+
+    // Capture the native install prompt event
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        console.log('Native install prompt captured');
+    });
+
+    window.addEventListener('appinstalled', (e) => {
+        console.log('App installed successfully');
+        deferredPrompt = null;
+        // Hide the custom banner since app is now installed
+        const banner = document.getElementById('app-banner');
+        if (banner) {
+            banner.style.display = 'none';
+        }
+    });
+
     const STORE_URLS = {
         android: 'https://play.google.com/store/apps/details?id=com.adjil.bnpl',
         ios: 'https://apps.apple.com/app/adjil-bnpl/id123456789'
@@ -4811,10 +4873,28 @@ window.resetFreeze = () => {
         }
 
         const userOS = detectOS();
-        if (userOS === 'android' || userOS === 'ios') {
-            installBtn.href = STORE_URLS[userOS];
-        } else {
-            installBtn.href = STORE_URLS.android;
+        const storeUrl = userOS === 'ios' ? STORE_URLS.ios : STORE_URLS.android;
+
+        // Use native prompt if available, otherwise open store
+        installBtn.addEventListener('click', (e) => {
+            if (deferredPrompt) {
+                e.preventDefault();
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        console.log('User accepted native install prompt');
+                    }
+                    deferredPrompt = null;
+                });
+            } else {
+                // No native prompt - open store link
+                window.open(storeUrl, '_blank');
+            }
+        });
+
+        // If no native support, set the href for manual click
+        if (!deferredPrompt) {
+            installBtn.href = storeUrl;
         }
 
         setTimeout(() => {

@@ -370,6 +370,48 @@
                         window.dispatchEvent(new CustomEvent('adjil:users:updated'));
                     }
                 )
+                .on(
+                    'postgres_changes',
+                    { event: '*', schema: 'public', table: 'subscription_requests' },
+                    async (payload) => {
+                        console.log('[Realtime] Subscription request changed:', payload);
+                        // Only react to changes for current user
+                        if (app && app.user && payload.new && payload.new.user_id === app.user.id) {
+                            window.dispatchEvent(new CustomEvent('adjil:subscription:updated', { detail: payload.new }));
+                            
+                            // If request was approved, activate subscription
+                            if (payload.new.status === 'approved') {
+                                const limit = payload.new.credit_limit || 10000;
+                                const updates = {
+                                    status: 'active',
+                                    subscription_plan: payload.new.plan,
+                                    credit_limit: limit,
+                                    balance: limit
+                                };
+                                
+                                // Update local user
+                                if (app && app.user) {
+                                    app.user = { ...app.user, ...updates };
+                                    localStorage.setItem('adjil_session', JSON.stringify(app.user));
+                                    
+                                    // Update in DB
+                                    const users = DB.get('users') || [];
+                                    const idx = users.findIndex(u => u.id === app.user.id);
+                                    if (idx >= 0) {
+                                        users[idx] = { ...users[idx], ...updates };
+                                        DB.set('users', users);
+                                    }
+                                    
+                                    window.dispatchEvent(new CustomEvent('adjil:subscription:activated', { detail: updates }));
+                                    
+                                    const lang = app.lang || 'ar';
+                                    alert(lang === 'ar' ? 'تم تفعيل اشتراكك! رصيدك الآن ' + limit + ' دج' : 'Your subscription is now active! Your balance is ' + limit + ' DZD');
+                                    router.navigate('/dashboard');
+                                }
+                            }
+                        }
+                    }
+                )
                 .subscribe((status) => {
                     console.debug('[Realtime] Status:', status);
                     window.dispatchEvent(new CustomEvent('adjil:realtime:status', { detail: status }));

@@ -1,12 +1,19 @@
-const CACHE_NAME = 'adjil-v2';
+const CACHE_NAME = 'adjil-v3';
 const ASSETS_TO_CACHE = [
+  './',
   './index.html',
   './manifest.json',
   './assets/css/style.css',
   './assets/css/payment.css',
   './assets/js/main.js',
   './assets/js/payment.js',
-  './assets/Adjil logo.png'
+  './assets/js/supabase-client.js',
+  './assets/Adjil logo.png',
+  './assets/EL BARAKA.png',
+  './assets/CREDIT.png',
+  './CNEP.png',
+  './BNA.png',
+  './BNP.png'
 ];
 
 self.addEventListener('install', (event) => {

@@ -8,7 +8,72 @@
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- ============================================
--- 0. CLEANUP EXISTING OBJECTS (if re-running)
+-- 0. AUTH INTEGRATION - Profiles Table & Trigger
+-- ============================================
+
+-- Profiles table (linked to auth.users)
+CREATE TABLE IF NOT EXISTS public.profiles (
+  id uuid REFERENCES auth.users NOT NULL PRIMARY KEY,
+  email text,
+  full_name text,
+  phone text,
+  role text DEFAULT 'customer',
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Function: Auto-create profile AND user entry when user signs up via Supabase Auth
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger AS $$
+BEGIN
+  -- Create profile in public.profiles
+  INSERT INTO public.profiles (id, email, full_name, phone)
+  VALUES (
+    new.id, 
+    new.email, 
+    new.raw_user_meta_data->>'name', 
+    new.raw_user_meta_data->>'phone'
+  );
+  
+  -- Also create user entry in public.users for platform compatibility
+  INSERT INTO public.users (id, name, email, phone, role, status, balance, credit_limit)
+  VALUES (
+    new.id,
+    COALESCE(new.raw_user_meta_data->>'name', split_part(new.email, '@', 1)),
+    new.email,
+    new.raw_user_meta_data->>'phone',
+    COALESCE(new.raw_user_meta_data->>'role', 'customer'),
+    'active',
+    0,
+    0
+  );
+  
+  RETURN new;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Trigger: Activate the function
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
+
+-- Enable RLS for profiles
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can read own profile" ON public.profiles;
+CREATE POLICY "Users can read own profile" ON public.profiles 
+    FOR SELECT USING (id = auth.uid());
+
+DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
+CREATE POLICY "Users can update own profile" ON public.profiles 
+    FOR UPDATE USING (id = auth.uid());
+
+DROP POLICY IF EXISTS "Service role can manage profiles" ON public.profiles;
+CREATE POLICY "Service role can manage profiles" ON public.profiles 
+    FOR ALL USING (true);
+
+-- ============================================
+-- 1. CLEANUP EXISTING OBJECTS (if re-running)
 -- ============================================
 
 DROP TABLE IF EXISTS public.transactions CASCADE;
@@ -195,7 +260,57 @@ CREATE INDEX idx_notifications_user ON public.notifications(user_id);
 CREATE INDEX idx_notifications_read ON public.notifications(is_read);
 
 -- ============================================
--- 7. AUDIT LOG TABLE (NEW)
+-- 7. SUBSCRIPTION REQUESTS TABLE (NEW)
+-- ============================================
+
+CREATE TABLE public.subscription_requests (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    user_id UUID REFERENCES public.users(id) ON DELETE CASCADE,
+    user_name TEXT,
+    user_email TEXT,
+    user_phone TEXT,
+    plan TEXT NOT NULL CHECK (plan IN ('monthly', '6months', 'annual')),
+    credit_limit DECIMAL(12, 2) DEFAULT 0,
+    status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected', 'cancelled')),
+    admin_notes TEXT,
+    reviewed_by UUID REFERENCES public.users(id),
+    reviewed_at TIMESTAMP WITH TIME ZONE
+);
+
+-- Enable RLS for subscription_requests
+ALTER TABLE public.subscription_requests ENABLE ROW LEVEL SECURITY;
+
+-- Subscription requests policies
+DROP POLICY IF EXISTS "Users can read own requests" ON public.subscription_requests;
+CREATE POLICY "Users can read own requests" ON public.subscription_requests 
+    FOR SELECT USING (user_id = auth.uid());
+
+DROP POLICY IF EXISTS "Users can create requests" ON public.subscription_requests;
+CREATE POLICY "Users can create requests" ON public.subscription_requests 
+    FOR INSERT WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Users can update own requests" ON public.subscription_requests;
+CREATE POLICY "Users can update own requests" ON public.subscription_requests 
+    FOR UPDATE USING (user_id = auth.uid());
+
+-- Admin can read all requests
+DROP POLICY IF EXISTS "Admins can read all requests" ON public.subscription_requests;
+CREATE POLICY "Admins can read all requests" ON public.subscription_requests 
+    FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Service role can manage requests" ON public.subscription_requests;
+CREATE POLICY "Service role can manage requests" ON public.subscription_requests 
+    FOR ALL USING (true);
+
+-- Subscription requests indexes
+CREATE INDEX idx_subscription_requests_user ON public.subscription_requests(user_id);
+CREATE INDEX idx_subscription_requests_status ON public.subscription_requests(status);
+CREATE INDEX idx_subscription_requests_created ON public.subscription_requests(created_at);
+
+-- ============================================
+-- 8. AUDIT LOG TABLE (NEW)
 -- ============================================
 
 CREATE TABLE public.audit_logs (
@@ -435,3 +550,13 @@ CREATE POLICY "Anyone can update admin_user_sync" ON public.admin_user_sync FOR 
 
 -- Index
 CREATE INDEX IF NOT EXISTS idx_admin_user_sync_adjil_user_id ON public.admin_user_sync(adjilUserId);
+
+-- ============================================
+-- 10. REALTIME PUBLICATION - Enable live updates
+-- ============================================
+
+-- Add tables to realtime publication for ADMIN-PORTAL live sync
+ALTER PUBLICATION supabase_realtime ADD TABLE public.profiles;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.users;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.subscription_requests;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.transactions;
