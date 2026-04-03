@@ -717,210 +717,9 @@ const app = {
             partners_title: "Partenaires de paiement agréés",
             partners_subtitle: "Nous leur faisons confiance et ils nous font confiance",
             about_title: "Adjil : Une révolution dans le commerce numérique en Algérie",
-            about_subtitle: "Nous ne sommes pas seulement une application de paiement, nous sommes votre partenaire financier.",
-            start_journey: "Commencez votre voyage",
-            learn_more: "En savoir plus",
-            fin_adv_title: "Avantages Financiers",
-            fin_adv_desc: "Gestion financière intelligente adaptée à votre budget",
-            fin_adv_p: "Nous vous offrons une liquidité immédiate qui vous permet d'acquérir vos besoins essentiels sans pression.",
-            fin_item1: "Crédit instantané - Obtenez votre crédit dès l'activation de votre compte.",
-            fin_item2: "Paiement échelonné - Payez à la fin du mois ou par mensualités.",
-            fin_item3: "Sans commissions bancaires - Système 100% transparent au service du citoyen.",
-            soc_adv_title: "Avantages Sociaux",
-            soc_adv_desc: "Renforcer la confiance et la solidarité",
-            soc_adv_p: "Adjil est un pont de confiance entre le marchand et le client.",
-            eco_adv_title: "Avantages Économiques",
-            eco_adv_desc: "Stimuler l'économie nationale",
-            eco_adv_p: "Nous contribuons à créer un environnement économique actif en augmentant les ventes.",
-            cta_title: "Prêt à vivre le futur ?",
-            register_customer: "S'inscrire comme client",
-            register_customer_desc: "Obtenez un crédit immédiat",
-            register_merchant: "Devenir marchand",
-            register_merchant_desc: "Doublez vos ventes aujourd'hui",
-            customer: "Client",
-            merchant: "Marchand",
-            status_pending: "En attente",
-            status_success: "Réussi",
-            sale_from: "Vente de :",
-            collecting: "En cours de collecte",
-            footer_slogan: "Buy Now Pay Later - La solution numérique idéale en Algérie.",
-            quick_links: "Liens Rapides",
-            why_adjil: "Pourquoi Adjil ?",
-            ethics_title: "Futur du BNPL éthique",
-            ethics_desc: "Nous résolvons la crise de liquidité des familles algériennes grâce à la technologie.",
-            integrity_title: "Intégrité Financière",
-            integrity_desc: "Notre système garantit le paiement sans complications bureaucratiques.",
-            account_frozen: "Compte temporairement gelé",
-            frozen_desc: "Désolé, vos privilèges de compte ont été suspendus en raison de paiements impayés dans les délais impartis.",
-            no_merchants: "Aucun marchand inscrit pour le moment",
-            merchants_title: "Nos Partenaires Marchands",
-            merchants_subtitle: "Retrouvez-nous partout dans le pays",
-            algiers_algeria: "Alger, Algérie",
-            change_lang: "Changer de langue",
-            investor_access: "Accès Investisseurs",
-            scan_qr_title: "Scanner le code QR",
-            logout_confirm: "Êtes-vous sûr de vouloir vous déconnecter ?",
-            no_data: "Aucune donnée",
-            invite_title: "Adjil | Achetez maintenant, payez plus tard",
-            invite_text: "Rejoignez Adjil et profitez d'un crédit instantané jusqu'à 10 000 DZD !",
-            invite_copied: "Lien de téléchargement copié ! Vous pouvez l'envoyer à vos amis.",
-            alt_shop: "Acheter",
-            alt_scan: "Scanner",
-            alt_paylater: "Payer plus tard",
-            alt_financial: "Financier",
-            alt_social: "Social",
-            alt_economic: "Économique",
-            investment_opp: "Opportunité d'investissement",
-            account_suspended: "Compte suspendu",
-            contact_support: "Contacter le support",
-            return_login: "Retour à la connexion",
-            qr_video_title: "Comment payer avec QR Code",
-            qr_video_subtitle: "Vidéo explicative sur l'achat et la vérification du solde",
-            video_placeholder: "Tutoriel vidéo bientôt disponible",
-            pay_later_title: "Paiement différé : Sécurité, Facilité et Tranquillité",
-            pay_later_subtitle: "Notre système est conçu pour vous offrir une liberté financière sans complications.",
-            pay_later_desc: "Nous utilisons les dernières technologies pour garantir une expérience de paiement fluide. Achetez maintenant et payez à la fin du mois en toute sérénité.",
-            api_title: "Interface Développeurs (API)",
-            api_subtitle: "Bientôt : Documentation complète pour intégrer Adjil à votre boutique en ligne.",
-            secure_payment: "Paiement 100% sécurisé et crypté",
-            scan_camera_desc: "Dirigez la caméra vers le code du marchand",
-            searching_qr: "Recherche automatique du code QR...",
-            simulate_qr: "Simuler un scan réussi",
-            online_now: "En ligne maintenant",
-            direct_pay_title: "Paiement Direct",
-            enter_due_amount: "Entrez le montant dû",
-            choose_method: "Choisir la méthode de paiement",
-            method_qr: "Activer QR",
-            method_id: "Choisir ID Market",
-            market_id_label: "ID du marchand",
-            payment_done: "Montant transféré au portefeuille du marchand",
-            invoice_ready: "Facture numérique créée, prête à télécharger",
-            copyright: "© 2026 ADJIL-BNPL. Tous droits réservés.",
-            auth_login_title: "Se connecter",
-            auth_register_title: "Nouveau compte",
-            auth_welcome_title: "Bienvenue chez Adjil",
-            auth_login_subtitle: "Connectez-vous pour continuer",
-            auth_register_subtitle: "Rejoignez la famille Adjil aujourd'hui",
-            auth_create_account_title: "Créer un nouveau compte",
-            email_phone: "Email ou téléphone",
-            email_phone_placeholder: "example@mail.com / 0550...",
-            password_placeholder: "••••••••",
-            fill_required: "Veuillez remplir tous les champs requis",
-            email_registered: "Cet e-mail est déjà enregistré",
-            phone_registered: "Ce numéro de téléphone est déjà enregistré",
-            register_success: "Compte créé avec succès ! Vous pouvez maintenant vous connecter.",
-            login_error: "E-mail ou mot de passe incorrect",
-            subscribe_login_required: "Vous devez vous connecter pour souscrire à un forfait",
-            forgot_password_sent: "Instructions de réinitialisation envoyées à : ",
-            invalid_amount: "Veuillez entrer un montant valide",
-            enter_merchant_name: "Veuillez entrer le nom du marchand",
-            merchant_not_found: "Erreur : Marchand non trouvé",
-            system_error_user_not_found: "Erreur système : Utilisateur non trouvé",
-            payment_success_msg: "Paiement réussi !",
-            qr_scan_success: "QR Code scanné avec succès ! Veuillez confirmer le paiement.",
-            search_merchant: "Rechercher un magasin",
-            search_merchant_placeholder: "Nom du magasin ou activité",
-            view_on_map: "Voir sur la carte",
-            merchant_activity: "Activité",
-            merchant_location: "Emplacement",
-            merchant_pin_label: "Code de paiement",
-            copy_pin: "Copier le code",
-            copied: "Copié",
-            reg_location: "Sélectionner l'emplacement",
-            reg_location_desc: "Sélectionnez votre emplacement sur Google Maps",
-            select_on_map: "Carte",
-            select_merchant: "Sélectionner le marchand",
-            plan_selected: "Plan sélectionné : ",
-            demo_customer: "Démo (Client)",
-            demo_merchant: "Démo (Marchand)",
-            firstname: "Prénom",
-            lastname: "Nom",
-            email: "E-mail",
-            phone: "Téléphone",
-            password: "Mot de passe",
-            optional: "(Optionnel)",
-            create_account: "Créer le compte",
-            next: "Suivant",
-            back: "Retour",
-            confirm: "Confirmer",
-            digital_contract: "Contrat numérique",
-            digital_contract_desc: "Avant d'activer votre compte, veuillez lire le contrat Adjil et accepter les conditions.",
-            open_contract: "Cliquer pour lire le contrat",
-            accept_terms: "J’ai lu et j’accepte les conditions du contrat Adjil",
-            must_accept_terms: "Vous devez accepter les conditions du contrat avant de créer le compte",
-            id_card: "Carte d'identité biométrique",
-            payslip: "Fiche de paie (PDF)",
-            canceled_check: "Chèque barré",
-            commercial_register: "Registre du commerce",
-            activity_wilaya: "Wilaya d'activité",
-            plan_monthly: "Mensuel",
-            plan_6months: "6 Mois",
-            plan_annual: "Annuel",
-            price_suffix: "DZD/mois",
-            subscribe_now: "S'abonner",
-            save_10: "Économisez 10%",
-            save_25: "Économisez 25%",
-            price_monthly: "1000",
-            price_6months: "900",
-            price_annual: "750",
-            most_popular: "Le Plus Populaire",
-            credit_limit: "Crédit 10 000 DZD",
-            credit_limit_15: "Crédit jusqu'à 15 000 DZD",
-            credit_limit_25: "Crédit jusqu'à 25 000 DZD",
-            pay_30_days: "Paiement à 30 jours",
-            no_interest: "Sans intérêt",
-            priority_support: "Support prioritaire",
-            increase_limit: "Augmenter le plafond",
-            annual_gifts: "Cadeaux annuels",
-            enter_pin_desc: "Entrez votre code PIN pour confirmer",
-            cancel: "Annuler",
-            payment_success_desc: "Le montant a été déduit avec succès, téléchargez votre facture.",
-            amount: "Montant",
-            merchant: "Marchand",
-            transaction_id: "N° Transaction",
-            download_invoice: "Télécharger Facture",
-            return_dashboard: "Retour Tableau de Bord",
-            collect_outstanding: "Recouvrer les Impayés",
-            api_settlement_desc: "Utilisez le moteur de règlement bancaire pour retirer les ventes BNPL directement vers votre compte bancaire ou CCP.",
-            request_payout_api: "Demander Virement (API)",
-            card_number_label: "Numéro de Carte",
-            settlement_simulator: "Simulateur de Règlement",
-            settlement_simulator_sub: "Simulateur Moteur de Règlement (Côté Banque)",
-            start_auto_scan: "Lancer Auto-Scan & Débit",
-            console_waiting: "> En attente des commandes système...",
-            adjil_pool: "Pool Commercial Adjil",
-            pending_disbursements: "Virements en Attente",
-            api_desc_scan: "Scanner les comptes courants et identifier les montants dus.",
-            api_desc_debit: "Exécuter le prélèvement automatique sur le compte client.",
-            api_desc_disburse: "Redistribuer les fonds aux marchands via différentes institutions.",
-            compatible_ccp: "Compatible avec Algérie Poste (CCP)",
-            compatible_cib: "Compatible avec les systèmes bancaires (CIB/SATIM)",
-            ceo_title: "Mot du PDG et Fondateur",
-            ceo_message: "Chez Adjil, nous envisageons l'avenir avec une vision qui place l'humain au cœur de l'innovation financière. Notre objectif est de nous étendre mondialement grâce à des partenariats stratégiques et des technologies fiables qui simplifient la vie quotidienne et ouvrent des portes d'opportunité pour tous. Nous nous engageons dans des initiatives pratiques pour améliorer le niveau de vie des individus, via des solutions de paiement sécurisées et transparentes qui respectent la vie privée des utilisateurs et leur donnent la liberté de gestion financière sans complexité. Nos remerciements à tous ceux qui ont cru au projet Adjil et ont soutenu son parcours.",
-            contract_intro: "Ce contrat est conclu entre la plateforme Adjil d'une part, et l'abonné (client ou marchand) d'autre part, afin de réglementer l'utilisation du service de paiement différé selon des contrôles financiers et juridiques clairs.",
-            contract_art1_title: "Article 1 – Objet du contrat",
-            contract_art1_desc: "Ce contrat vise à accorder à l'abonné la possibilité d'utiliser un plafond de crédit défini par la plateforme pour effectuer des achats auprès des marchands affiliés au système BNPL, avec son plein engagement à rembourser les montants dus dans les délais impartis.",
-            contract_art2_title: "Article 2 – Obligations de l'abonné",
-            contract_art2_desc: "L'abonné s'engage à : utiliser le compte et le crédit uniquement à des fins légales et personnelles, respecter le plafond de crédit accordé, payer tous les montants dus dans les délais, et mettre à jour ses données personnelles.",
-            contract_art3_title: "Article 3 – Obligations du marchand",
-            contract_art3_desc: "Le marchand s'engage à documenter chaque transaction avec précision via Adjil, à ne pas enregistrer de transactions fictives, à respecter les prix annoncés et à coopérer avec la plateforme.",
-            contract_art4_title: "Article 4 – Droits de la plateforme",
-            contract_art4_desc: "Adjil se réserve le droit de réviser le plafond de crédit, de suspendre ou de fermer le compte en cas de suspicion d'utilisation illégale ou de défaut de paiement répété.",
-            contract_art5_title: "Article 5 – Acceptation électronique",
-            contract_art5_desc: "Cocher la case \"J'ai lu et j'accepte les conditions du contrat Adjil\" constitue une acceptation électronique complète de tous les termes, ayant le même effet juridique qu'une signature manuscrite.",
-            contract_art6_title: "Article 6 – Protection des données personnelles",
-            contract_art6_desc: "Adjil s'engage à respecter la loi 18-07 relative à la protection des personnes physiques dans le traitement des données à caractère personnel, en utilisant les données uniquement pour le service, avec sécurité et confidentialité.",
-            contract_art7_title: "Article 7 – Mandat de Prélèvement Automatique (Direct Debit Mandate)",
-            contract_art7_desc: "En vertu de cette clause, l'abonné accorde un mandat exprès et irrévocable à Adjil pour effectuer le prélèvement automatique des mensualités dues sur son compte postal ou bancaire déclaré, à la date d'échéance convenue, sans préavis pour chaque transaction, la plateforme s'engageant à ne prélever que les montants convenus.",
-            contract_subscriber_name: "Nom du souscripteur",
-            contract_signature_date: "Date de signature",
-            contract_signature_label: "Signature du souscripteur",
-            print_contract: "Imprimer le contrat",
-            download_contract: "Télécharger le contrat",
-            pricing_page_title: "Plans d'abonnement flexibles",
-            pricing_page_subtitle: "Choisissez le plan qui vous convient et profitez du shopping instantané",
+            about_subtitle: "Nous ne sommes pas seulement une application de paiement, nous sommes votre partenaire financier qui s'efforce de redéfinir la relation entre le marchand et le consommateur en Algérie grâce à des solutions innovantes « Achetez maintenant, payez plus tard ».",
             about_hero_title: "Adjil : Une révolution dans le commerce numérique en Algérie",
-            about_hero_subtitle: "Nous ne sommes pas seulement une application de paiement, nous sommes votre partenaire financier qui cherche à remodeler la relation entre le marchand et le consommateur en Algérie grâce à des solutions innovantes \"Achetez maintenant, payez plus tard\".",
+            about_hero_subtitle: "Nous ne sommes pas seulement une application de paiement, nous sommes votre partenaire financier qui s'efforce de redéfinir la relation entre le marchand et le consommateur en Algérie grâce à des solutions innovantes « Achetez maintenant, payez plus tard ».",
             no_interest_fees: "0% d'intérêt ou frais cachés",
             empower_families: "Autonomisation des familles",
             empower_families_desc: "Répondre aux besoins essentiels à temps sans délai.",
@@ -2372,11 +2171,11 @@ const app = {
         document.getElementById('qr-board-warning-text').textContent = app.lang === 'ar'
             ? 'تنبيه: بالضغط على تأكيد الدفع سيتم الخصم مباشرة من رصيدك إلى رصيد التاجر دون طلب PIN.'
             : 'Notice: by confirming payment, amount will be deducted directly from your balance to merchant balance without PIN.';
-        document.getElementById('qr-board-amount').textContent = `${amount.toLocaleString()} دج`;
+        document.getElementById('qr-board-amount').textContent = `${Number(amount).toLocaleString()} دج`;
 
         // Store pending transaction
         app.currentPendingTx = {
-            amount,
+            amount: Number(amount),
             merchantId,
             merchantName: merchant.name,
             invoiceNumber,
@@ -2396,12 +2195,18 @@ const app = {
     confirmQRPayment: () => {
         const { amount, merchantId, merchantName, invoiceNumber, storeNumber, merchantActivity, merchantLocation } = app.currentPendingTx;
         const t = app.translations[app.lang];
+        
+        const paymentAmount = Number(amount);
+        if (isNaN(paymentAmount) || paymentAmount <= 0) {
+            alert(app.lang === 'ar' ? 'مبلغ غير صالح' : 'Invalid amount');
+            return;
+        }
 
         if (app.user?.status && app.user.status !== 'active') {
             alert(app.lang === 'ar' ? 'الحساب غير نشط' : 'Account is inactive');
             return;
         }
-        if (amount > app.user.balance) {
+        if (paymentAmount > app.user.balance) {
             alert(t.insufficient_balance);
             return;
         }
@@ -2417,7 +2222,7 @@ const app = {
                 tx = await window.SyncService.recordTransaction({
                     customerId: app.user.id,
                     merchantId,
-                    amount,
+                    amount: paymentAmount,
                     method: 'BNPL_QR',
                     merchantName,
                     customerName: app.user.name,
@@ -2604,8 +2409,8 @@ const app = {
             document.getElementById('manual-payment-content').classList.add('hidden');
             document.getElementById('success-payment-content').classList.remove('hidden');
 
-            document.getElementById('success-amount').textContent = amount.toLocaleString() + ' دج';
-            document.getElementById('success-merchant').textContent = merchant.name;
+            document.getElementById('success-amount').textContent = Number(amount).toLocaleString() + ' دج';
+            document.getElementById('success-merchant').textContent = merchantName;
             document.getElementById('success-tx-id').textContent = tx.id;
 
             const downloadBtn = document.getElementById('download-invoice-btn');
@@ -4950,26 +4755,21 @@ window.resetFreeze = () => {
 
 // Smart App Banner
 (function() {
-    const BANNER_STORAGE_KEY = 'adjil_app_banner_dismissed';
-    const BANNER_DISMISS_DURATION = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
-    const BANNER_DELAY = 1500; // 1.5 seconds delay
+    const BANNER_SESSION_KEY = 'adjil_app_banner_session_shown';
+    const BANNER_DELAY = 1500;
 
-    // Store URLs
     const STORE_URLS = {
         android: 'https://play.google.com/store/apps/details?id=com.adjil.bnpl',
         ios: 'https://apps.apple.com/app/adjil-bnpl/id123456789'
     };
 
-    // Detect user's operating system
     function detectOS() {
         const userAgent = navigator.userAgent || navigator.vendor || window.opera;
         
-        // Check for iOS
         if (/iPad|iPhone|iPod/.test(userAgent) && !window.MSStream) {
             return 'ios';
         }
         
-        // Check for Android
         if (/android/i.test(userAgent)) {
             return 'android';
         }
@@ -4977,26 +4777,27 @@ window.resetFreeze = () => {
         return 'other';
     }
 
-    // Check if banner was dismissed within the last 24 hours
-    function isBannerDismissed() {
-        const dismissedTime = localStorage.getItem(BANNER_STORAGE_KEY);
-        if (!dismissedTime) return false;
-        
-        const dismissedTimestamp = parseInt(dismissedTime, 10);
-        const currentTime = Date.now();
-        
-        return (currentTime - dismissedTimestamp) < BANNER_DISMISS_DURATION;
+    function isAppInstalled() {
+        return window.matchMedia('(display-mode: standalone)').matches || 
+               window.matchMedia('(display-mode: fullscreen)').matches ||
+               window.matchMedia('(display-mode: minimal-ui)').matches ||
+               navigator.standalone === true;
     }
 
-    // Mark banner as dismissed
-    function dismissBanner() {
-        localStorage.setItem(BANNER_STORAGE_KEY, Date.now().toString());
+    function wasBannerShownInSession() {
+        return sessionStorage.getItem(BANNER_SESSION_KEY) === 'true';
     }
 
-    // Initialize the banner
+    function markBannerShownInSession() {
+        sessionStorage.setItem(BANNER_SESSION_KEY, 'true');
+    }
+
     function initBanner() {
-        // Check if banner should be shown
-        if (isBannerDismissed()) {
+        if (isAppInstalled()) {
+            return;
+        }
+
+        if (wasBannerShownInSession()) {
             return;
         }
 
@@ -5009,37 +4810,31 @@ window.resetFreeze = () => {
             return;
         }
 
-        // Detect OS and set appropriate store link
         const userOS = detectOS();
         if (userOS === 'android' || userOS === 'ios') {
             installBtn.href = STORE_URLS[userOS];
         } else {
-            // For desktop or other platforms, default to Play Store
             installBtn.href = STORE_URLS.android;
         }
 
-        // Show banner after delay
         setTimeout(() => {
             banner.style.display = 'block';
-            // Trigger reflow to enable transition
             banner.offsetHeight;
             banner.classList.add('visible');
+            markBannerShownInSession();
         }, BANNER_DELAY);
 
-        // Close button handler
         closeBtn.addEventListener('click', () => {
             banner.classList.remove('visible');
             setTimeout(() => {
                 banner.style.display = 'none';
-            }, 500); // Wait for transition to complete
-            dismissBanner();
+            }, 500);
         });
     }
 
-    // Initialize when DOM is ready
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', initBanner);
     } else {
         initBanner();
     }
-})();
+});
