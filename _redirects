@@ -1,2 +1,2 @@
-/admin/* /ADMIN-PORTAL/:splat  200
-/* /AdjilBNPL/:splat              200
+/admin/* /ADMIN-PORTAL/dist/:splat  200
+/* /AdjilBNPL/:splat          200
