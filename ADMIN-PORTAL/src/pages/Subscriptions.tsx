@@ -88,6 +88,12 @@ export default function Subscriptions() {
     }
   }
 
+  const roleLabel = (role?: 'customer' | 'merchant') => {
+    if (role === 'merchant') return 'تاجر'
+    if (role === 'customer') return 'زبون'
+    return '—'
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -161,6 +167,7 @@ export default function Subscriptions() {
             <thead>
               <tr className="text-slate-500 border-b border-white/5">
                 <th className="text-right py-3 px-3 font-medium">الاسم</th>
+                <th className="text-right py-3 px-3 font-medium">النوع</th>
                 <th className="text-right py-3 px-3 font-medium">البريد</th>
                 <th className="text-right py-3 px-3 font-medium">الهاتف</th>
                 <th className="text-right py-3 px-3 font-medium">الباقة</th>
@@ -179,6 +186,15 @@ export default function Subscriptions() {
                   }`}
                 >
                   <td className="py-3 px-3 font-medium text-white">{req.user_name || '—'}</td>
+                  <td className="py-3 px-3">
+                    <span className={`px-2 py-1 rounded-lg text-[10px] font-bold border ${
+                      req.user_role === 'merchant'
+                        ? 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                        : 'bg-purple-500/10 text-purple-400 border-purple-500/20'
+                    }`}>
+                      {roleLabel(req.user_role)}
+                    </span>
+                  </td>
                   <td className="py-3 px-3 text-slate-400">{req.user_email || '—'}</td>
                   <td className="py-3 px-3 text-slate-400">{req.user_phone || '—'}</td>
                   <td className="py-3 px-3">
@@ -228,6 +244,10 @@ export default function Subscriptions() {
               <div className="font-semibold text-white">{selected.user_name || '—'}</div>
             </div>
             <div className="bg-dark-900 p-3 rounded-xl border border-white/5">
+              <div className="text-slate-500 mb-1">نوع الحساب</div>
+              <div className="font-semibold text-white">{roleLabel(selected.user_role)}</div>
+            </div>
+            <div className="bg-dark-900 p-3 rounded-xl border border-white/5">
               <div className="text-slate-500 mb-1">البريد</div>
               <div className="font-semibold text-white truncate">{selected.user_email || '—'}</div>
             </div>
@@ -259,6 +279,36 @@ export default function Subscriptions() {
               <div className="text-slate-500 mb-1">تاريخ الطلب</div>
               <div className="font-semibold text-white">{formatDate(selected.created_at)}</div>
             </div>
+            <div className="bg-dark-900 p-3 rounded-xl border border-white/5">
+              <div className="text-slate-500 mb-1">الحالة الحالية للحساب</div>
+              <div className="font-semibold text-white">{selected.user_data?.status || '—'}</div>
+            </div>
+            <div className="bg-dark-900 p-3 rounded-xl border border-white/5">
+              <div className="text-slate-500 mb-1">الولاية / المدينة</div>
+              <div className="font-semibold text-white">{selected.user_data?.wilaya || selected.user_data?.city || '—'}</div>
+            </div>
+          </div>
+
+          <div className="bg-dark-900 p-4 rounded-xl border border-white/5">
+            <div className="text-slate-500 mb-3 text-xs">الوثائق المرفوعة</div>
+            {selected.request_documents && selected.request_documents.length > 0 ? (
+              <div className="grid md:grid-cols-2 gap-2">
+                {selected.request_documents.map((doc) => (
+                  <a
+                    key={doc.key}
+                    href={doc.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="bg-dark-800 border border-white/5 hover:border-primary/30 text-white rounded-xl px-3 py-2 text-xs transition-all flex items-center justify-between"
+                  >
+                    <span>{doc.label}</span>
+                    <i className="fa-solid fa-up-right-from-square text-slate-400"></i>
+                  </a>
+                ))}
+              </div>
+            ) : (
+              <div className="text-slate-500 text-xs">لا توجد وثائق مرتبطة بهذا الطلب</div>
+            )}
           </div>
 
           {selected.admin_notes && (
@@ -316,7 +366,7 @@ export default function Subscriptions() {
               </button>
               <button
                 onClick={handleAction}
-                disabled={actionLoading}
+                disabled={Boolean(actionLoading)}
                 className={`flex-1 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
                   showNotesModal === 'approve'
                     ? 'bg-[#10b981] hover:bg-[#059669] text-white shadow-lg shadow-[#10b981]/20'

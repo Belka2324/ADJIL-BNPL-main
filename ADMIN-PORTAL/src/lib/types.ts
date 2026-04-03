@@ -167,10 +167,13 @@ export type SubscriptionRequestRecord = {
   user_name: string
   user_email: string
   user_phone: string
+  user_role?: 'customer' | 'merchant'
   plan: 'monthly' | '6months' | 'annual'
   credit_limit: number
   status: 'pending' | 'approved' | 'rejected' | 'cancelled'
   admin_notes: string
   reviewed_by: string
   reviewed_at: string
+  user_data?: UserRecord | null
+  request_documents?: Array<{ key: string; label: string; url: string }>
 }

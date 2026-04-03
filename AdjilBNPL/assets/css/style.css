@@ -953,11 +953,10 @@ body { font-family: 'Cairo', sans-serif; }
 #theme-toggle-container {
     position: fixed;
     top: 72px;
-    right: 16px;
+    left: 16px;
     z-index: 150;
 }
 [dir="ltr"] #theme-toggle-container {
-    right: auto;
     left: 16px;
 }
 #theme-toggle-btn {

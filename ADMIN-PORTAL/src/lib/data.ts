@@ -253,34 +253,83 @@ export const createStaffViaFunction = async (payload: {
 }): Promise<void> => {
   if (!hasSupabase || !supabase) throw new Error('Supabase is not configured')
   
-  // Try Edge Function first
   const { error: functionError } = await supabase.functions.invoke('create-staff', { body: payload })
   
-  if (functionError) {
-    console.warn('Edge Function failed, trying direct signUp:', functionError)
-    
-    // Fallback to direct signUp
-    const { error: signUpError } = await supabase.auth.signUp({
-      email: payload.email,
-      password: payload.password,
-      options: {
-        data: {
-          name: payload.full_name,
-          username: payload.username,
-          role: payload.role,
-          phone: payload.phone_number,
-          city: payload.city
-        }
-      }
-    })
-    
-    if (signUpError) throw signUpError
-    
-    // Log out to complete creation (required on client-side signup)
-    localStorage.removeItem('adjil_admin_session')
-    window.location.href = '/login'
+  if (!functionError) {
+    clearCache()
+    return
   }
   
+  console.warn('Edge Function failed, trying direct signUp:', functionError)
+  let staffUserId = ''
+  const [firstName, ...lastNameParts] = payload.full_name.trim().split(/\s+/)
+  const lastName = lastNameParts.join(' ')
+
+  const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+    email: payload.email,
+    password: payload.password,
+    options: {
+      data: {
+        name: payload.full_name,
+        username: payload.username,
+        role: payload.role,
+        phone: payload.phone_number,
+        city: payload.city
+      }
+    }
+  })
+
+  if (!signUpError && signUpData?.user?.id) {
+    staffUserId = signUpData.user.id
+  }
+
+  if (!staffUserId) {
+    const { data: existingUser } = await supabase
+      .from('users')
+      .select('id')
+      .eq('email', payload.email)
+      .maybeSingle()
+    staffUserId = existingUser?.id || crypto.randomUUID()
+  }
+
+  const { error: userUpsertError } = await supabase
+    .from('users')
+    .upsert(
+      [{
+        id: staffUserId,
+        name: payload.full_name,
+        username: payload.username,
+        email: payload.email,
+        phone: payload.phone_number || null,
+        role: payload.role,
+        status: payload.state === 'inactive' ? 'inactive' : 'active',
+        city: payload.city || null
+      }],
+      { onConflict: 'id' }
+    )
+  if (userUpsertError) throw userUpsertError
+
+  const { error: staffUpsertError } = await supabase
+    .from('staff')
+    .upsert(
+      [{
+        first_name: firstName || payload.full_name,
+        last_name: lastName || '-',
+        email: payload.email,
+        phone: payload.phone_number || null,
+        address: payload.city || null,
+        role: payload.role,
+        institution: 'Adjil HQ',
+        is_active: payload.state !== 'inactive'
+      }],
+      { onConflict: 'email' }
+    )
+  if (staffUpsertError) throw staffUpsertError
+
+  if (signUpError) {
+    console.warn('Auth signUp failed but staff/user rows were created:', signUpError.message)
+  }
+
   clearCache()
 }
 
@@ -685,6 +734,32 @@ const getDemoStaff = (): StaffRecord[] => [
 // Subscription Requests Functions
 // ============================================
 
+const mapRequestDocuments = (u: any): Array<{ key: string; label: string; url: string }> => {
+  if (!u) return []
+  const typed = [
+    { key: 'doc_id_front', label: 'بطاقة التعريف (الوجه الأمامي)', url: u.doc_id_front },
+    { key: 'doc_id_back', label: 'بطاقة التعريف (الوجه الخلفي)', url: u.doc_id_back },
+    { key: 'doc_payslip', label: 'كشف الراتب', url: u.doc_payslip },
+    { key: 'doc_rib', label: 'كشف RIB / RIP', url: u.doc_rib },
+    { key: 'doc_commercial_register', label: 'السجل التجاري', url: u.doc_commercial_register },
+    { key: 'doc_contract', label: 'العقد الرقمي', url: u.doc_contract }
+  ].filter((d) => Boolean(d.url)) as Array<{ key: string; label: string; url: string }>
+
+  const generic = (Array.isArray(u.document_urls) ? u.document_urls : [])
+    .map((doc: any, idx: number) => {
+      const url = typeof doc === 'string' ? doc : doc?.url
+      if (!url) return null
+      return {
+        key: `generic-${idx}`,
+        label: typeof doc === 'string' ? `وثيقة ${idx + 1}` : (doc.label || doc.type || `وثيقة ${idx + 1}`),
+        url
+      }
+    })
+    .filter(Boolean) as Array<{ key: string; label: string; url: string }>
+
+  return [...typed, ...generic]
+}
+
 export const fetchSubscriptionRequests = async (): Promise<SubscriptionRequestRecord[]> => {
   const cached = getCached<SubscriptionRequestRecord[]>(CACHE_KEYS.users + '_subscriptions')
   if (cached) return cached
@@ -696,8 +771,56 @@ export const fetchSubscriptionRequests = async (): Promise<SubscriptionRequestRe
       .order('created_at', { ascending: false })
 
     if (error) throw error
-    setCache(CACHE_KEYS.users + '_subscriptions', data || [])
-    return (data || []) as SubscriptionRequestRecord[]
+
+    const requests = (data || []) as SubscriptionRequestRecord[]
+    const userIds = Array.from(new Set(requests.map((r) => r.user_id).filter(Boolean)))
+    let usersMap = new Map<string, any>()
+
+    if (userIds.length > 0) {
+      const { data: usersData } = await supabase
+        .from('users')
+        .select('id, name, email, phone, role, status, city, wilaya, location, activity, balance, credit_limit, doc_id_front, doc_id_back, doc_payslip, doc_rib, doc_commercial_register, doc_contract, document_urls')
+        .in('id', userIds)
+      usersMap = new Map((usersData || []).map((u: any) => [u.id, u]))
+    }
+
+    const enriched = requests.map((req) => {
+      const u = usersMap.get(req.user_id)
+      return {
+        ...req,
+        user_name: req.user_name || u?.name || '—',
+        user_email: req.user_email || u?.email || '—',
+        user_phone: req.user_phone || u?.phone || '—',
+        user_role: (u?.role === 'merchant' ? 'merchant' : 'customer') as 'customer' | 'merchant',
+        user_data: u
+          ? {
+              id: u.id,
+              name: u.name,
+              email: u.email,
+              phone_number: u.phone,
+              role: u.role,
+              status: u.status,
+              city: u.city,
+              wilaya: u.wilaya,
+              location: u.location,
+              activity: u.activity,
+              balance: u.balance,
+              credit_limit: u.credit_limit,
+              doc_id_front: u.doc_id_front,
+              doc_id_back: u.doc_id_back,
+              doc_payslip: u.doc_payslip,
+              doc_rib: u.doc_rib,
+              doc_commercial_register: u.doc_commercial_register,
+              doc_contract: u.doc_contract,
+              document_urls: Array.isArray(u.document_urls) ? u.document_urls : []
+            }
+          : null,
+        request_documents: mapRequestDocuments(u)
+      } as SubscriptionRequestRecord
+    })
+
+    setCache(CACHE_KEYS.users + '_subscriptions', enriched)
+    return enriched
   }
 
   return []

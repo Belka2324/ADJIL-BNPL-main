@@ -90,15 +90,22 @@ if (!window.AuthService) {
                 });
                 if (error) throw error;
                 if (data.user) {
-                    // Note: The profile is created by the Supabase trigger
                     const user = {
                         id: data.user.id,
                         email: data.user.email,
                         ...payload,
-                        status: 'active'
+                        status: payload.status || 'pending'
                     };
+                    const { password, ...safeUserRow } = user;
+                    try {
+                        await window.supabaseClient
+                            .from('users')
+                            .upsert([safeUserRow], { onConflict: 'id' });
+                    } catch (syncErr) {
+                        console.warn('[AuthService.signUp] users upsert failed:', syncErr);
+                    }
                     localStorage.setItem('adjil_session', JSON.stringify(user));
-                    return user;
+                    return { user, mode: 'supabase' };
                 }
             }
             // Fallback
@@ -110,12 +117,12 @@ if (!window.AuthService) {
                 ...payload,
                 id: (crypto.randomUUID && crypto.randomUUID()) || ('local-' + Date.now()),
                 created_at: new Date().toISOString(),
-                status: 'active'
+                status: payload.status || 'pending'
             };
             users.push(user);
             localStorage.setItem('adjil_users', JSON.stringify(users));
             localStorage.setItem('adjil_session', JSON.stringify(user));
-            return user;
+            return { user, mode: 'local' };
         },
         async signOut() {
             if (window.supabaseClient) {
@@ -170,16 +177,16 @@ if (window.AuthService && typeof window.AuthService.signUp !== 'function') {
         if (users.some(u => u.email === payload.email || u.phone === payload.phone)) {
             throw new Error('User already exists');
         }
-        const user = {
+            const user = {
             ...payload,
             id: (crypto.randomUUID && crypto.randomUUID()) || ('local-' + Date.now()),
             created_at: new Date().toISOString(),
-            status: 'active'
+                status: payload.status || 'pending'
         };
         users.push(user);
         localStorage.setItem('adjil_users', JSON.stringify(users));
         localStorage.setItem('adjil_session', JSON.stringify(user));
-        return user;
+            return { user, mode: 'local' };
     };
 }
 if (window.AuthService && typeof window.AuthService.signOut !== 'function') {
@@ -1983,7 +1990,14 @@ const app = {
         if (!container || !section) return;
 
         container.innerHTML = '';
-        const qrData = JSON.stringify({ m: app.user.id, a: app.posAmount });
+        const qrData = JSON.stringify({
+            m: app.user.id,
+            a: app.posAmount,
+            n: app.user.name || '',
+            ac: app.user.activity || '',
+            loc: app.user.location || app.user.wilaya || '',
+            s: app.user.pin ? String(app.user.pin).padStart(4, '0') : String(app.user.id || '').slice(0, 8)
+        });
 
         new QRCode(container, {
             text: qrData,
@@ -2316,7 +2330,7 @@ const app = {
             const data = JSON.parse(decodedText);
             if (data.m && data.a) {
                 // Delay slightly to allow the camera to stop cleanly before opening next modal
-                setTimeout(() => app.openQRPaymentBoard(data.m, data.a), 300);
+                setTimeout(() => app.openQRPaymentBoard(data.m, data.a, data), 300);
             } else {
                 throw new Error("Invalid format");
             }
@@ -2329,13 +2343,35 @@ const app = {
         }
     },
 
-    openQRPaymentBoard: (merchantId, amount) => {
+    openQRPaymentBoard: async (merchantId, amount, merchantSnapshot = null) => {
         const users = DB.get('users') || [];
-        const merchant = users.find(u => u.role === 'merchant' && u.id === merchantId);
+        let merchant = users.find(u => u.role === 'merchant' && u.id === merchantId);
+        if (!merchant && window.SyncService?.fetchMerchantFromSupabase) {
+            await window.SyncService.fetchMerchantFromSupabase(merchantId);
+            const refreshedUsers = DB.get('users') || [];
+            merchant = refreshedUsers.find(u => u.role === 'merchant' && u.id === merchantId);
+        }
+        if (!merchant && merchantSnapshot?.n) {
+            merchant = {
+                id: merchantId,
+                role: 'merchant',
+                name: merchantSnapshot.n,
+                activity: merchantSnapshot.ac || '',
+                location: merchantSnapshot.loc || '',
+                pin: merchantSnapshot.s || null
+            };
+        }
         if (!merchant) {
             alert(app.lang === 'ar' ? 'حدث خطأ: التاجر غير موجود' : 'Error: Merchant not found');
             return;
         }
+        const paymentAmount = Number(amount);
+        if (!Number.isFinite(paymentAmount) || paymentAmount <= 0) {
+            alert(app.lang === 'ar' ? 'قيمة QR غير صالحة: المبلغ غير متوفر' : 'Invalid QR data: amount is missing');
+            return;
+        }
+        const merchantLocation = merchant.location || merchant.wilaya || merchantSnapshot?.loc || '';
+        const merchantActivity = merchant.activity || merchantSnapshot?.ac || '';
 
         // Create QR payment board modal
         let modal = document.getElementById('qr-payment-board-modal');
@@ -2401,27 +2437,27 @@ const app = {
         }
 
         const invoiceNumber = `INV-${Date.now()}-${Math.floor(Math.random() * 900 + 100)}`;
-        const storeNumber = merchant.pin ? String(merchant.pin).padStart(4, '0') : String(merchant.id || '').slice(0, 8);
+        const storeNumber = merchant.pin ? String(merchant.pin).padStart(4, '0') : (merchantSnapshot?.s || String(merchant.id || '').slice(0, 8));
         // Update modal content
         document.getElementById('qr-board-merchant-name').textContent = merchant.name;
-        document.getElementById('qr-board-merchant-activity').textContent = merchant.activity || '';
-        document.getElementById('qr-board-merchant-location').textContent = merchant.location || '';
+        document.getElementById('qr-board-merchant-activity').textContent = merchantActivity;
+        document.getElementById('qr-board-merchant-location').textContent = merchantLocation;
         document.getElementById('qr-board-store-number').textContent = storeNumber;
         document.getElementById('qr-board-invoice-number').textContent = invoiceNumber;
         document.getElementById('qr-board-warning-text').textContent = app.lang === 'ar'
             ? 'تنبيه: بالضغط على تأكيد الدفع سيتم الخصم مباشرة من رصيدك إلى رصيد التاجر دون طلب PIN.'
             : 'Notice: by confirming payment, amount will be deducted directly from your balance to merchant balance without PIN.';
-        document.getElementById('qr-board-amount').textContent = `${Number(amount).toLocaleString()} دج`;
+        document.getElementById('qr-board-amount').textContent = `${paymentAmount.toLocaleString()} دج`;
 
         // Store pending transaction
         app.currentPendingTx = {
-            amount: Number(amount),
+            amount: paymentAmount,
             merchantId,
             merchantName: merchant.name,
             invoiceNumber,
             storeNumber,
-            merchantActivity: merchant.activity || '',
-            merchantLocation: merchant.location || ''
+            merchantActivity,
+            merchantLocation
         };
 
         modal.classList.remove('hidden');
@@ -2433,6 +2469,10 @@ const app = {
     },
 
     confirmQRPayment: () => {
+        if (!app.currentPendingTx) {
+            alert(app.lang === 'ar' ? 'لا توجد عملية دفع معلّقة' : 'No pending payment found');
+            return;
+        }
         const { amount, merchantId, merchantName, invoiceNumber, storeNumber, merchantActivity, merchantLocation } = app.currentPendingTx;
         const t = app.translations[app.lang];
         
@@ -2619,6 +2659,7 @@ const app = {
         
         if (app.user?.status && app.user.status !== 'active') return alert(app.lang === 'ar' ? 'الحساب غير نشط' : 'Account is inactive');
         if (amount > app.user.balance) return alert(t.insufficient_balance);
+        const merchantName = merchant.name;
 
         const btn = document.getElementById('real-pay-btn');
         const originalText = btn.innerHTML;
@@ -3133,7 +3174,7 @@ const app = {
                 phone: phone,
                 password: pass,
                 role: app.regRole,
-                status: 'inactive',
+                status: 'pending',
                 subscription_plan: null,
                 credit_limit: 0,
                 balance: 0.00,
