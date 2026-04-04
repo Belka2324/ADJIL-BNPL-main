@@ -2559,8 +2559,17 @@ const app = {
                 name: merchantSnapshot.n,
                 activity: '',
                 location: '',
-                pin: merchantSnapshot.s || null
+                pin: merchantSnapshot.s || null,
+                balance: 0,
+                outstanding: 0,
+                status: 'active'
             };
+            
+            // Add to local DB so recordTransaction can find it
+            const users = DB.get('users') || [];
+            users.push(merchant);
+            DB.set('users', users);
+            console.log('[QR Payment] Merchant added to local DB');
         }
         
         if (!merchant) {
@@ -5128,15 +5137,27 @@ const SyncService = {
         const getUsers = () => DB.get('users') || [];
         let users = getUsers();
         
-        let custIdx = users.findIndex(u => u.id === customerId);
-        let merchIdx = users.findIndex(u => u.id === merchantId);
+        // Handle partial ID matching (QR codes use shortened IDs)
+        const findUserById = (id) => {
+            // Try exact match first
+            let idx = users.findIndex(u => u.id === id);
+            if (idx !== -1) return idx;
+            
+            // Try partial match (ID without dashes, first 12 chars)
+            const shortId = id.replace(/-/g, '').substring(0, 12);
+            idx = users.findIndex(u => u.id.replace(/-/g, '').startsWith(shortId));
+            return idx;
+        };
+        
+        let custIdx = findUserById(customerId);
+        let merchIdx = findUserById(merchantId);
 
         // Robust check: ensure current user is in the local users list
         if (custIdx === -1 && app.user && app.user.id === customerId) {
             users.push(app.user);
             DB.set('users', users);
             users = getUsers(); // Refresh reference
-            custIdx = users.findIndex(u => u.id === customerId);
+            custIdx = findUserById(customerId);
         }
 
         // If merchant still not found, try to fetch it if we are online
@@ -5144,7 +5165,27 @@ const SyncService = {
             const remoteMerch = await SyncService.fetchMerchantFromSupabase(merchantId);
             if (remoteMerch) {
                 users = getUsers(); // Refresh reference after async fetch
-                merchIdx = users.findIndex(u => u.id === merchantId);
+                merchIdx = findUserById(merchantId);
+            }
+        }
+        
+        // Last resort: create merchant from name if provided
+        if (merchIdx === -1 && merchantName) {
+            // Check if merchant exists by name
+            merchIdx = users.findIndex(u => u.role === 'merchant' && u.name === merchantName);
+            if (merchIdx === -1) {
+                // Create temporary merchant entry
+                const newMerchant = {
+                    id: merchantId,
+                    name: merchantName,
+                    role: 'merchant',
+                    balance: 0,
+                    outstanding: 0,
+                    status: 'active'
+                };
+                users.push(newMerchant);
+                DB.set('users', users);
+                merchIdx = users.length - 1;
             }
         }
 
