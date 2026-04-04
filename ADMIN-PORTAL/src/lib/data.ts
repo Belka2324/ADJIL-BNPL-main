@@ -554,51 +554,65 @@ export const fetchStaffById = async (id: string): Promise<StaffRecord | null> =>
 }
 
 export const createStaff = async (member: Omit<StaffRecord, 'id' | 'created_at' | 'updated_at' | 'reports_count' | 'messages_count'> & { username?: string; password?: string }): Promise<void> => {
-  if (hasSupabase && supabase) {
-    // First, try to create auth user via signUp
-    let userId = ''
-    
-    // Generate a password if not provided (temporary password)
-    const password = member.password || 'TempPass123!'
-    
-    try {
-      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-        email: member.email,
-        password: password,
-        options: {
-          data: {
-            name: `${member.first_name} ${member.last_name}`,
-            username: member.username
-          }
-        }
-      })
-      
-      if (!signUpError && signUpData?.user) {
-        userId = signUpData.user.id
-      } else if (signUpError && signUpError.message.includes('already registered')) {
-        // User already exists, get their ID
-        const { data: existingUser } = await supabase
-          .from('users')
-          .select('id')
-          .eq('email', member.email)
-          .maybeSingle()
-        userId = existingUser?.id || ''
-      }
-    } catch (authError) {
-      console.warn('Auth signup failed, trying direct user creation:', authError)
+  if (!hasSupabase || !supabase) {
+    console.warn('Supabase not configured, storing staff locally')
+    // Store locally for demo mode
+    const existingStaff = JSON.parse(localStorage.getItem('adjil_local_staff') || '[]')
+    const newStaff = {
+      id: 'staff-' + Date.now(),
+      ...member,
+      is_active: true,
+      created_at: new Date().toISOString()
     }
+    existingStaff.push(newStaff)
+    localStorage.setItem('adjil_local_staff', JSON.stringify(existingStaff))
+    return
+  }
+  
+  // First, try to create auth user via signUp
+  let userId = ''
+  
+  // Generate a password if not provided (temporary password)
+  const password = member.password || 'TempPass123!'
+  
+  try {
+    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+      email: member.email,
+      password: password,
+      options: {
+        data: {
+          name: `${member.first_name} ${member.last_name}`,
+          username: member.username
+        }
+      }
+    })
+    
+    if (!signUpError && signUpData?.user) {
+      userId = signUpData.user.id
+    } else if (signUpError && signUpError.message.includes('already registered')) {
+      // User already exists, get their ID
+      const { data: existingUser } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', member.email)
+        .maybeSingle()
+      userId = existingUser?.id || ''
+    }
+  } catch (authError) {
+    console.warn('Auth signup failed, trying direct user creation:', authError)
+  }
 
-    // Create user in users table
-    const { error: userError } = await supabase
-      .from('users')
-      .upsert({
-        id: userId || undefined,
-        name: `${member.first_name} ${member.last_name}`,
-        email: member.email,
-        username: member.username,
-        role: member.role,
-        status: 'active'
-      }, { onConflict: 'email' })
+  // Create user in users table
+  const { error: userError } = await supabase
+    .from('users')
+    .upsert({
+      id: userId || undefined,
+      name: `${member.first_name} ${member.last_name}`,
+      email: member.email,
+      username: member.username,
+      role: member.role,
+      status: 'active'
+    }, { onConflict: 'email' })
     
     if (userError) {
       console.error('Error creating staff member in users table:', userError)
@@ -624,7 +638,6 @@ export const createStaff = async (member: Omit<StaffRecord, 'id' | 'created_at' 
     
     clearCache()
   }
-}
 
 export const updateStaff = async (id: string, updates: Partial<StaffRecord>): Promise<void> => {
   if (hasSupabase && supabase) {

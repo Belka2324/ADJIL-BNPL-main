@@ -470,10 +470,7 @@
             <div class="col-span-1 md:col-span-2">
                 <div class="flex items-center gap-3 mb-4">
                     <div class="flex items-center gap-2">
-                        <svg class="w-12 h-12 drop-shadow-[0_0_8px_rgba(16,185,129,0.5)]" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M20 55 L50 25 L80 55" stroke="#10b981" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
-                            <path d="M35 70 L50 55 L65 70" stroke="white" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
+                        <img src="assets/Adjil logo.png" alt="ADJIL" class="w-14 h-14 rounded-xl object-contain bg-white/5 p-1 shadow-lg shadow-primary/20">
                         <div class="flex flex-col justify-center">
                             <h2 class="text-3xl font-black font-montserrat tracking-tighter leading-none text-white uppercase italic drop-shadow-[2px_2px_2px_rgba(0,0,0,0.8)]">
                                 AD<span class="text-primary">JIL</span>-BNPL
@@ -2237,26 +2234,40 @@
 
                 <!-- Bank Details Section -->
                 <div class="bg-dark-800/50 rounded-2xl p-6 border border-white/5 space-y-4 text-right">
-                    <h3 class="text-lg font-bold text-white">معلومات الحساب البنكي</h3>
+                    <h3 class="text-lg font-bold text-white">معلومات البطاقة البنكية</h3>
                     
                     <div class="space-y-3">
-                        <label class="text-sm text-slate-400">اختر نوع الحساب:</label>
+                        <label class="text-sm text-slate-400">اختر نوع البطاقة:</label>
                         <div class="flex gap-2">
                             <button onclick="app.selectBankTypeForSub('edahabia')" id="sub-btn-edahabia" class="flex-1 py-2 px-3 rounded-xl border border-slate-700 text-sm font-bold bg-slate-800 text-slate-400 hover:border-yellow-400 hover:text-yellow-400 transition-all">بطاقة ذهبية</button>
-                            <button onclick="app.selectBankTypeForSub('ccp')" id="sub-btn-ccp" class="flex-1 py-2 px-3 rounded-xl border border-slate-700 text-sm font-bold bg-slate-800 text-slate-400 hover:border-primary hover:text-primary transition-all">حساب بريد</button>
-                            <button onclick="app.selectBankTypeForSub('cib')" id="sub-btn-cib" class="flex-1 py-2 px-3 rounded-xl border border-slate-700 text-sm font-bold bg-slate-800 text-slate-400 hover:border-green-400 hover:text-green-400 transition-all">حساب بنكي</button>
+                            <button onclick="app.selectBankTypeForSub('ccp')" id="sub-btn-ccp" class="flex-1 py-2 px-3 rounded-xl border border-slate-700 text-sm font-bold bg-slate-800 text-slate-400 hover:border-primary hover:text-primary transition-all">بطاقة بريد</button>
+                            <button onclick="app.selectBankTypeForSub('cib')" id="sub-btn-cib" class="flex-1 py-2 px-3 rounded-xl border border-slate-700 text-sm font-bold bg-slate-800 text-slate-400 hover:border-green-400 hover:text-green-400 transition-all">بطاقة بنكية</button>
                         </div>
                     </div>
 
                     <div id="sub-bank-fields" class="space-y-3 hidden">
-                        <div id="sub-edahabia-fields" class="hidden">
-                            <input type="text" id="sub-edahabia" placeholder="رقم البطاقة الذهبية (19 رقماً)" maxlength="19" class="w-full bg-dark-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-center font-mono text-lg">
+                        <!-- Card Number -->
+                        <div>
+                            <label class="text-xs text-slate-400 block mb-1">رقم البطاقة</label>
+                            <input type="text" id="sub-card-number" placeholder="0000 0000 0000 0000" maxlength="19" class="w-full bg-dark-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-center font-mono text-lg" oninput="this.value = this.value.replace(/\s/g, '').replace(/(\d{4})/g, '$1 ').trim()">
                         </div>
-                        <div id="sub-ccp-fields" class="hidden">
-                            <input type="text" id="sub-rip" placeholder="رقم الحساب البريدي RIP" maxlength="20" class="w-full bg-dark-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-center font-mono text-lg">
+                        
+                        <!-- Expiry and CVV -->
+                        <div class="flex gap-3">
+                            <div class="flex-1">
+                                <label class="text-xs text-slate-400 block mb-1">تاريخ الانتهاء</label>
+                                <input type="text" id="sub-expiry" placeholder="MM/YY" maxlength="5" class="w-full bg-dark-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-center font-mono text-lg">
+                            </div>
+                            <div class="flex-1">
+                                <label class="text-xs text-slate-400 block mb-1">رمز CVV</label>
+                                <input type="text" id="sub-cvv" placeholder="***" maxlength="4" class="w-full bg-dark-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-center font-mono text-lg">
+                            </div>
                         </div>
-                        <div id="sub-cib-fields" class="hidden">
-                            <input type="text" id="sub-rib" placeholder="رقم الحساب البنكي RIB" maxlength="24" class="w-full bg-dark-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-center font-mono text-lg">
+                        
+                        <!-- Card holder name -->
+                        <div>
+                            <label class="text-xs text-slate-400 block mb-1">اسم صاحب البطاقة</label>
+                            <input type="text" id="sub-card-holder" placeholder="الاسم الكامل كما هو مكتوب على البطاقة" class="w-full bg-dark-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-center font-mono">
                         </div>
                     </div>
                 </div>

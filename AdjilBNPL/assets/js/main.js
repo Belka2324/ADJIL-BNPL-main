@@ -3988,9 +3988,6 @@ const app = {
         const btnCcp = document.getElementById('sub-btn-ccp');
         const btnCib = document.getElementById('sub-btn-cib');
         const fields = document.getElementById('sub-bank-fields');
-        const edahabiaField = document.getElementById('sub-edahabia-fields');
-        const ccpField = document.getElementById('sub-ccp-fields');
-        const cibField = document.getElementById('sub-cib-fields');
         
         // Reset all buttons
         btnEdahabia?.classList.replace('border-yellow-400', 'border-slate-700');
@@ -4000,26 +3997,21 @@ const app = {
         btnCib?.classList.replace('border-green-400', 'border-slate-700');
         btnCib?.classList.replace('text-green-400', 'text-slate-400');
         
-        // Highlight selected
+        // Highlight selected and show unified card fields
         if (type === 'edahabia') {
             btnEdahabia?.classList.replace('border-slate-700', 'border-yellow-400');
             btnEdahabia?.classList.replace('text-slate-400', 'text-yellow-400');
-            edahabiaField?.classList.remove('hidden');
-            ccpField?.classList.add('hidden');
-            cibField?.classList.add('hidden');
         } else if (type === 'ccp') {
             btnCcp?.classList.replace('border-slate-700', 'border-primary');
             btnCcp?.classList.replace('text-slate-400', 'text-primary');
-            edahabiaField?.classList.add('hidden');
-            ccpField?.classList.remove('hidden');
-            cibField?.classList.add('hidden');
         } else if (type === 'cib') {
             btnCib?.classList.replace('border-slate-700', 'border-green-400');
             btnCib?.classList.replace('text-slate-400', 'text-green-400');
-            edahabiaField?.classList.add('hidden');
-            ccpField?.classList.add('hidden');
-            cibField?.classList.remove('hidden');
         }
+        
+        // Show the unified card input fields
+        fields?.classList.remove('hidden');
+        app.selectedBankType = type;
         
         fields?.classList.remove('hidden');
         app.selectedBankType = type;
@@ -4027,36 +4019,52 @@ const app = {
     confirmSubscription: async () => {
         if (!app.user || !app.pendingPlan) return;
 
-        // Validate bank details
+        // Validate card details
         const selectedType = app.selectedBankType;
         if (!selectedType) {
-            alert(app.lang === 'ar' ? 'يرجى اختيار نوع الحساب البنكي أولاً' : app.lang === 'fr' ? 'Veuillez sélectionner un type de compte bancaire' : 'Please select a bank account type first');
+            alert(app.lang === 'ar' ? 'يرجى اختيار نوع البطاقة أولاً' : app.lang === 'fr' ? 'Veuillez sélectionner un type de carte' : 'Please select a card type first');
             return;
         }
 
-        let bankDetails = {};
-        if (selectedType === 'edahabia') {
-            const edahabia = document.getElementById('sub-edahabia')?.value;
-            if (!edahabia || edahabia.length < 16) {
-                alert(app.lang === 'ar' ? 'يرجى إدخال رقم البطاقة الذهبية الصحيح' : app.lang === 'fr' ? 'Veuillez entrer le numéro de carte Edahabia correct' : 'Please enter a valid Edahabia card number');
-                return;
-            }
-            bankDetails = { edahabia, type: 'edahabia' };
-        } else if (selectedType === 'ccp') {
-            const rip = document.getElementById('sub-rip')?.value;
-            if (!rip || rip.length < 10) {
-                alert(app.lang === 'ar' ? 'يرجى إدخال رقم الحساب البريدي الصحيح' : app.lang === 'fr' ? 'Veuillez entrer le numéro RIP correct' : 'Please enter a valid RIP number');
-                return;
-            }
-            bankDetails = { rip, type: 'ccp' };
-        } else if (selectedType === 'cib') {
-            const rib = document.getElementById('sub-rib')?.value;
-            if (!rib || rib.length < 16) {
-                alert(app.lang === 'ar' ? 'يرجى إدخال رقم الحساب البنكي الصحيح' : app.lang === 'fr' ? 'Veuillez entrer le numéro RIB correct' : 'Please enter a valid RIB number');
-                return;
-            }
-            bankDetails = { rib, type: 'cib' };
+        // Get card details
+        const cardNumber = document.getElementById('sub-card-number')?.value.replace(/\s/g, '') || '';
+        const expiry = document.getElementById('sub-expiry')?.value || '';
+        const cvv = document.getElementById('sub-cvv')?.value || '';
+        const cardHolder = document.getElementById('sub-card-holder')?.value || '';
+
+        // Validate card number (at least 13 digits)
+        if (!cardNumber || cardNumber.length < 13) {
+            alert(app.lang === 'ar' ? 'يرجى إدخال رقم البطاقة الصحيح (13-19 رقم)' : app.lang === 'fr' ? 'Veuillez entrer un numéro de carte valide (13-19 chiffres)' : 'Please enter a valid card number (13-19 digits)');
+            return;
         }
+
+        // Validate expiry (MM/YY format)
+        if (!expiry || !/^\d{2}\/\d{2}$/.test(expiry)) {
+            alert(app.lang === 'ar' ? 'يرجى إدخال تاريخ الانتهاء بتنسيق MM/YY' : app.lang === 'fr' ? 'Veuillez entrer la date au format MM/YY' : 'Please enter expiry date as MM/YY');
+            return;
+        }
+
+        // Validate CVV (3-4 digits)
+        if (!cvv || cvv.length < 3) {
+            alert(app.lang === 'ar' ? 'يرجى إدخال رمز CVV الصحيح' : app.lang === 'fr' ? 'Veuillez entrer le code CVV valide' : 'Please enter a valid CVV code');
+            return;
+        }
+
+        // Validate card holder name
+        if (!cardHolder || cardHolder.length < 3) {
+            alert(app.lang === 'ar' ? 'يرجى إدخال اسم صاحب البطاقة' : app.lang === 'fr' ? 'Veuillez entrer le nom du titulaire de la carte' : 'Please enter card holder name');
+            return;
+        }
+
+        // Store card details (masked for security - only last 4 digits visible)
+        const maskedCard = '****' + cardNumber.slice(-4);
+        const bankDetails = {
+            type: selectedType,
+            cardNumber: maskedCard,
+            expiry: expiry,
+            cardHolder: cardHolder,
+            fullCardNumber: cardNumber // For demo purposes
+        };
 
         const btn = document.getElementById('btn-confirm-sub');
         const originalHtml = btn.innerHTML;
@@ -4066,13 +4074,14 @@ const app = {
         const plan = app.pendingPlan;
         const limit = plan === 'monthly' ? 10000 : plan === '6months' ? 15000 : 25000;
         
-        // Update user with subscription and bank details
+        // Update user with subscription and card details
         const updates = {
             subscription_plan: plan,
             credit_limit: limit,
             balance: limit,
             status: 'active',
-            bank_details: bankDetails
+            bank_details: bankDetails,
+            card_last_4: maskedCard
         };
         
         // Update local storage
@@ -4098,8 +4107,8 @@ const app = {
                         credit_limit: limit,
                         balance: limit,
                         status: 'active',
-                        bank_rib: bankDetails.rib || null,
-                        doc_rib: bankDetails.edahabia || bankDetails.rip || null
+                        bank_rib: maskedCard,
+                        doc_rib: maskedCard
                     })
                     .eq('id', app.user.id);
                 
