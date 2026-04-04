@@ -100,6 +100,30 @@ export const fetchUsers = async (): Promise<UserRecord[]> => {
   const cached = getCached<UserRecord[]>(CACHE_KEYS.users)
   if (cached) return cached
 
+  // Get local users from AdjilBNPL localStorage
+  let localUsers: UserRecord[] = []
+  try {
+    const adjilUsers = JSON.parse(localStorage.getItem('adjil_users') || '[]')
+    localUsers = adjilUsers.map((u: any) => ({
+      id: u.id,
+      name: u.name,
+      email: u.email,
+      phone_number: u.phone,
+      role: u.role,
+      status: u.status || 'active',
+      state: u.status || 'active',
+      wilaya: u.wilaya,
+      city: u.city,
+      activity: u.activity,
+      balance: u.balance || 0,
+      outstanding: u.outstanding || 0,
+      credit_limit: u.credit_limit || 0,
+      created_at: u.created_at
+    }))
+  } catch (e) {
+    console.warn('Could not parse local users:', e)
+  }
+
   if (hasSupabase && supabase) {
     const { data, error } = await supabase
       .from('users')
@@ -109,19 +133,17 @@ export const fetchUsers = async (): Promise<UserRecord[]> => {
     if (error) throw error
 
     const mapped: UserRecord[] = (data || []).map((p: any) => {
-      // document_urls is jsonb array of {url, type} or just strings
-      // We'll try to map them to specific fields if they have types, otherwise just put them in a list
       const docs = Array.isArray(p.document_urls) ? p.document_urls : []
       
       return {
         id: p.id,
         name: p.name || p.full_name || p.business_name,
         email: p.email,
-        phone_number: p.phone, // Assuming phone in users maps to phone_number
+        phone_number: p.phone,
         role: p.role,
         status: p.status,
-        state: p.status as AccountState, // For backward compat with UI expecting 'state' to be status
-        wilaya: p.wilaya, // Geographic state
+        state: p.status as AccountState,
+        wilaya: p.wilaya,
         city: p.city,
         activity: p.activity || p.business_type,
         balance: p.balance || 0,
@@ -132,18 +154,27 @@ export const fetchUsers = async (): Promise<UserRecord[]> => {
         frozen_at: p.frozen_at,
         blacklist_due_at: p.blacklist_due_at,
         document_urls: docs,
-        // Legacy doc fields mapping (best effort)
         doc_id_front: p.doc_id_front || docs.find((d: any) => (d.type === 'id_front' || d.label?.includes('front')))?.url || (typeof docs[0] === 'string' ? docs[0] : undefined),
         doc_id_back: p.doc_id_back || docs.find((d: any) => (d.type === 'id_back' || d.label?.includes('back')))?.url || (typeof docs[1] === 'string' ? docs[1] : undefined),
         doc_commercial_register: p.doc_commercial_register || docs.find((d: any) => (d.type === 'commercial_register' || d.label?.includes('register')))?.url || (typeof docs[2] === 'string' ? docs[2] : undefined),
       }
     })
 
-    setCache(CACHE_KEYS.users, mapped)
-    return mapped
+    // Combine local and remote users, removing duplicates by id
+    const allUsers = [...localUsers]
+    mapped.forEach(m => {
+      if (!allUsers.find(u => u.id === m.id)) {
+        allUsers.push(m)
+      }
+    })
+
+    setCache(CACHE_KEYS.users, allUsers)
+    return allUsers
   }
 
-  return []
+  // If no Supabase, return local users only
+  setCache(CACHE_KEYS.users, localUsers)
+  return localUsers
 }
 
 // ============================================
@@ -677,6 +708,27 @@ export const fetchTransactions = async (): Promise<TransactionRecord[]> => {
   const cached = getCached<TransactionRecord[]>(CACHE_KEYS.transactions)
   if (cached) return cached
   
+  // Get local transactions from AdjilBNPL localStorage
+  let localTransactions: TransactionRecord[] = []
+  try {
+    const adjilTx = JSON.parse(localStorage.getItem('adjil_transactions') || '[]')
+    localTransactions = adjilTx.map((t: any) => ({
+      id: t.id,
+      customer_id: t.customerId,
+      merchant_id: t.merchantId,
+      amount: t.amount,
+      method: t.method,
+      status: t.status || 'completed',
+      created_at: t.created_at || t.createdAt,
+      paid: t.paid,
+      paid_at: t.paid_at || t.paidAt,
+      merchant: t.merchant,
+      customer: t.customerName
+    }))
+  } catch (e) {
+    console.warn('Could not parse local transactions:', e)
+  }
+  
   if (hasSupabase && supabase) {
     const { data, error } = await supabase
       .from('transactions')
@@ -685,12 +737,20 @@ export const fetchTransactions = async (): Promise<TransactionRecord[]> => {
     
     if (error) throw error
     if (data && data.length > 0) {
-      setCache(CACHE_KEYS.transactions, data)
-      return data
+      // Combine local and remote transactions
+      const allTx = [...localTransactions]
+      data.forEach(d => {
+        if (!allTx.find(t => t.id === d.id)) {
+          allTx.push(d)
+        }
+      })
+      setCache(CACHE_KEYS.transactions, allTx)
+      return allTx
     }
   }
   
-  return []
+  setCache(CACHE_KEYS.transactions, localTransactions)
+  return localTransactions
 }
 
 export const updateTransactionPaidStatus = async (transactionId: string, paid: boolean): Promise<void> => {
