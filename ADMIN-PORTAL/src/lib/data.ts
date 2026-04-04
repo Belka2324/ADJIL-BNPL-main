@@ -553,7 +553,7 @@ export const fetchStaffById = async (id: string): Promise<StaffRecord | null> =>
   return null
 }
 
-export const createStaff = async (member: Omit<StaffRecord, 'id' | 'created_at' | 'updated_at' | 'reports_count' | 'messages_count'> & { username?: string }): Promise<void> => {
+export const createStaff = async (member: Omit<StaffRecord, 'id' | 'created_at' | 'updated_at' | 'reports_count' | 'messages_count'> & { username?: string; password?: string }): Promise<void> => {
   if (hasSupabase && supabase) {
     // First, try to create auth user via signUp
     let userId = ''
