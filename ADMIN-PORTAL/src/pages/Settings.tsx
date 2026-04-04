@@ -124,10 +124,15 @@ export default function Settings() {
     
     if (hasSupabase && supabase) {
       try {
+        const nameParts = newName.trim().split(' ')
+        const firstName = nameParts[0] || ''
+        const lastName = nameParts.slice(1).join(' ') || ''
+        
         await createStaff({
           email: newEmail,
           password: newPassword,
-          full_name: newName,
+          first_name: firstName,
+          last_name: lastName,
           username: newUsername,
           role: newRole
         })

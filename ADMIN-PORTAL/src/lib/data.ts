@@ -555,20 +555,73 @@ export const fetchStaffById = async (id: string): Promise<StaffRecord | null> =>
 
 export const createStaff = async (member: Omit<StaffRecord, 'id' | 'created_at' | 'updated_at' | 'reports_count' | 'messages_count'> & { username?: string }): Promise<void> => {
   if (hasSupabase && supabase) {
-    const { error } = await supabase
+    // First, try to create auth user via signUp
+    let userId = ''
+    
+    // Generate a password if not provided (temporary password)
+    const password = member.password || 'TempPass123!'
+    
+    try {
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email: member.email,
+        password: password,
+        options: {
+          data: {
+            name: `${member.first_name} ${member.last_name}`,
+            username: member.username
+          }
+        }
+      })
+      
+      if (!signUpError && signUpData?.user) {
+        userId = signUpData.user.id
+      } else if (signUpError && signUpError.message.includes('already registered')) {
+        // User already exists, get their ID
+        const { data: existingUser } = await supabase
+          .from('users')
+          .select('id')
+          .eq('email', member.email)
+          .maybeSingle()
+        userId = existingUser?.id || ''
+      }
+    } catch (authError) {
+      console.warn('Auth signup failed, trying direct user creation:', authError)
+    }
+
+    // Create user in users table
+    const { error: userError } = await supabase
       .from('users')
-      .insert({
+      .upsert({
+        id: userId || undefined,
         name: `${member.first_name} ${member.last_name}`,
         email: member.email,
         username: member.username,
         role: member.role,
         status: 'active'
-      })
+      }, { onConflict: 'email' })
     
-    if (error) {
-      console.error('Error creating staff member in users table:', error)
-      throw error
+    if (userError) {
+      console.error('Error creating staff member in users table:', userError)
+      throw userError
     }
+    
+    // Also create in staff table if it exists
+    try {
+      await supabase
+        .from('staff')
+        .upsert({
+          id: userId || undefined,
+          first_name: member.first_name,
+          last_name: member.last_name,
+          email: member.email,
+          username: member.username,
+          role: member.role,
+          is_active: true
+        }, { onConflict: 'email' })
+    } catch (staffError) {
+      console.warn('Staff table might not exist or has different schema:', staffError)
+    }
+    
     clearCache()
   }
 }
