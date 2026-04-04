@@ -1,6 +1,0 @@
-# Admin Portal routes - serve index.html for all admin routes
-/admin /ADMIN-PORTAL/dist/index.html 200
-/admin/* /ADMIN-PORTAL/dist/index.html 200
-
-# AdjilBNPL default  
-/* /AdjilBNPL/index.html 200

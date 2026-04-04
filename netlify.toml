@@ -1,0 +1,27 @@
+[build]
+  command = "echo 'Static site - no build required'"
+  publish = "AdjilBNPL"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# AdjilBNPL - main app (SPA)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Admin Portal
+[[redirects]]
+  from = "/admin"
+  to = "/ADMIN-PORTAL/dist/index.html"
+  status = 200
+[[redirects]]
+  from = "/admin/*"
+  to = "/ADMIN-PORTAL/dist/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/ADMIN-PORTAL/*"
+  to = "/ADMIN-PORTAL/dist/index.html"
+  status = 200
