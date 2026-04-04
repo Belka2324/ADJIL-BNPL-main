@@ -65,6 +65,23 @@ export default function Login() {
       setIsLoading(false)
       return
     }
+    
+    // 1.5 Check locally created staff accounts
+    const localStaff = JSON.parse(localStorage.getItem('adjil_local_staff') || '[]')
+    const staffAccount = localStaff.find(
+      (s: any) => s.username?.toLowerCase() === data.identifier.toLowerCase() && s.password === data.password
+    )
+    if (staffAccount) {
+      saveSession({
+        username: data.identifier,
+        role: staffAccount.role || 'support',
+        remember,
+        isCEO: false
+      })
+      navigate('/dashboard')
+      setIsLoading(false)
+      return
+    }
 
     // 2. Try Supabase authentication
     if (hasSupabase && supabase) {

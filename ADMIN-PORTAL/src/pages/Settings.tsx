@@ -35,6 +35,9 @@ export default function Settings() {
 
   useEffect(() => {
     const fetchTeamData = async () => {
+      // Fetch from local storage first (demo mode)
+      const localStaff = JSON.parse(localStorage.getItem('adjil_local_staff') || '[]')
+      
       if (hasSupabase && supabase) {
         // Fetch staff from staff table
         const { data: staffData } = await supabase
@@ -48,8 +51,15 @@ export default function Settings() {
           .select('*')
           .in('role', ['admin', 'administrator'])
         
-        // Combine both
+        // Combine both with local
         const allMembers = [
+          ...localStaff.map((s: any) => ({
+            id: s.id,
+            name: `${s.first_name} ${s.last_name}`,
+            email: s.email,
+            role: s.role,
+            status: s.is_active ? 'active' : 'suspended'
+          })),
           ...(staffData || []).map(s => ({
             id: s.id,
             name: `${s.first_name} ${s.last_name}`,
@@ -66,6 +76,15 @@ export default function Settings() {
           }))
         ]
         setTeamMembers(allMembers)
+      } else {
+        // Use local storage only
+        setTeamMembers(localStaff.map((s: any) => ({
+          id: s.id,
+          name: `${s.first_name} ${s.last_name}`,
+          email: s.email,
+          role: s.role,
+          status: s.is_active ? 'active' : 'suspended'
+        })))
       }
     }
     
