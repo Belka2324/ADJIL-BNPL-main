@@ -1988,36 +1988,96 @@ const app = {
         }
     },
     generateMerchantQR: () => {
+        // Check if user is logged in and is a merchant
+        if (!app.user) {
+            alert(app.lang === 'ar' ? 'يرجى تسجيل الدخول أولاً' : 'Please login first');
+            router.navigate('/auth');
+            return;
+        }
+        
+        if (app.user.role !== 'merchant') {
+            alert(app.lang === 'ar' ? 'هذه الميزة متاحة للتجار فقط' : 'This feature is only for merchants');
+            return;
+        }
+        
         if (app.posAmount <= 0) {
             alert(app.lang === 'ar' ? 'يرجى إدخال مبلغ أكبر من الصفر أولاً' : 'Please enter an amount > 0 first');
             return;
         }
-        const container = document.getElementById('merch-qr-container');
-        const section = document.getElementById('dynamic-qr-section');
-        const amountDisplay = document.getElementById('qr-amount-display');
-        if (!container || !section) return;
+        
+        // Try to find elements - look in both document and cloned template
+        let container = document.getElementById('merch-qr-container');
+        let section = document.getElementById('dynamic-qr-section');
+        let amountDisplay = document.getElementById('qr-amount-display');
+        
+        // If not found in main document, look in template
+        if (!container || !section) {
+            const template = document.getElementById('tpl-dash-merchant');
+            if (template) {
+                container = template.content.getElementById('merch-qr-container');
+                section = template.content.getElementById('dynamic-qr-section');
+            }
+        }
+        
+        // If still not found, try to find in app container
+        if (!container || !section) {
+            const appContainer = document.getElementById('app');
+            if (appContainer) {
+                container = appContainer.querySelector('#merch-qr-container');
+                section = appContainer.querySelector('#dynamic-qr-section');
+                amountDisplay = appContainer.querySelector('#qr-amount-display');
+            }
+        }
+        
+        if (!container || !section) {
+            console.error('[QR] Container or section not found');
+            alert(app.lang === 'ar' ? 'حدث خطأ في عرض QR' : 'Error displaying QR');
+            return;
+        }
+
+        // Check if QRCode is available - try both QRCode and qrcode
+        const QRCodeLib = window.QRCode || window.qrcode;
+        if (!QRCodeLib) {
+            console.error('[QR] QRCode library not loaded');
+            alert('Error: QR Code library not loaded. Please refresh the page.');
+            return;
+        }
 
         container.innerHTML = '';
+        
+        // Clean JSON data for QR code
         const qrData = JSON.stringify({
             m: app.user.id,
             a: app.posAmount,
-            n: app.user.name || '',
-            ac: app.user.activity || '',
-            loc: app.user.location || app.user.wilaya || '',
+            n: (app.user.name || '').substring(0, 50),
+            ac: (app.user.activity || '').substring(0, 30),
+            loc: (app.user.location || app.user.wilaya || '').substring(0, 30),
             s: app.user.pin ? String(app.user.pin).padStart(4, '0') : String(app.user.id || '').slice(0, 8)
         });
+        
+        console.log('[QR] Generating for merchant:', app.user.id, 'amount:', app.posAmount, 'data:', qrData);
 
-        new QRCode(container, {
-            text: qrData,
-            width: 150,
-            height: 150,
-            colorDark: "#000000",
-            colorLight: "#ffffff",
-            correctLevel: QRCode.CorrectLevel.H
-        });
-
-        if (amountDisplay) amountDisplay.textContent = app.posAmount.toLocaleString();
-        section.classList.remove('hidden');
+        try {
+            new QRCodeLib(container, {
+                text: qrData,
+                width: 150,
+                height: 150,
+                colorDark: "#000000",
+                colorLight: "#ffffff",
+                correctLevel: QRCodeLib.CorrectLevel ? QRCodeLib.CorrectLevel.H : 'H'
+            });
+            
+            // Show the section
+            section.classList.remove('hidden');
+            
+            // Update amount display
+            if (amountDisplay) amountDisplay.textContent = app.posAmount.toLocaleString();
+            
+            console.log('[QR] Generated successfully');
+        } catch (e) {
+            console.error('[QR] Generation error:', e);
+            alert('Error generating QR: ' + e.message);
+        }
     },
     updateDashboardUI: () => {
         const menuContainer = document.getElementById('user-menu-container');
@@ -2351,8 +2411,18 @@ const app = {
     },
     qrScannerObj: null,
     startQRScanner: () => {
+        // Check if Html5Qrcode is available
+        if (typeof Html5Qrcode === 'undefined') {
+            console.error('[QR Scanner] Html5Qrcode library not loaded');
+            alert(app.lang === 'ar' ? 'خطأ: مكتبة الكاميرا غير محملة' : 'Error: Camera library not loaded');
+            return;
+        }
+        
         const modal = document.getElementById('qr-scanner-modal');
-        if (!modal) return;
+        if (!modal) {
+            console.error('[QR Scanner] Modal not found');
+            return;
+        }
         modal.classList.remove('hidden');
 
         if (!app.qrScannerObj) {
@@ -2364,13 +2434,21 @@ const app = {
         app.qrScannerObj.start(
             { facingMode: "environment" },
             config,
-            app.onQRScanSuccess,
+            (decodedText, result) => {
+                console.log('[QR Scanner] Scanned:', decodedText);
+                app.onQRScanSuccess(decodedText);
+            },
             (errorMessage) => {
                 // Ignore continuous scanning errors
             }
         ).catch(err => {
-            console.error("Camera error:", err);
-            alert(app.lang === 'ar' ? "فشل فتح الكاميرا. تحقق من الصلاحيات." : "Failed to open camera. Check permissions.");
+            console.error('[QR Scanner] Camera error:', err);
+            const errMsg = app.lang === 'ar' 
+                ? "فشل فتح الكاميرا. تحقق من الصلاحيات." 
+                : err.message?.includes('Permission')
+                ? "تم رفض إذن الكاميرا. يرجى السماح بالوصول للكاميرا."
+                : "فشل فتح الكاميرا. تحقق من الصلاحيات.";
+            alert(errMsg);
             app.stopQRScanner();
         });
     },
@@ -2383,17 +2461,20 @@ const app = {
         }
     },
     onQRScanSuccess: (decodedText) => {
+        console.log('[QR] Scan result:', decodedText);
         app.stopQRScanner();
 
         try {
             const data = JSON.parse(decodedText);
             if (data.m && data.a) {
+                console.log('[QR] Valid payment QR for merchant:', data.m, 'amount:', data.a);
                 // Delay slightly to allow the camera to stop cleanly before opening next modal
                 setTimeout(() => app.openQRPaymentBoard(data.m, data.a, data), 300);
             } else {
                 throw new Error("Invalid format");
             }
         } catch (e) {
+            console.log('[QR] Not JSON, trying as merchant ID');
             if (decodedText.startsWith('adjil-merch-') || decodedText.length > 5) {
                 setTimeout(() => app.openQRPaymentBoard(decodedText, ''), 300);
             } else {
@@ -2401,16 +2482,29 @@ const app = {
             }
         }
     },
+            } else {
+                alert(app.lang === 'ar' ? 'رمز QR غير صالح لمعاملة الدفع' : 'Invalid QR Code for payment');
+            }
+        }
+    },
 
     openQRPaymentBoard: async (merchantId, amount, merchantSnapshot = null) => {
+        console.log('[QR Payment] Opening for merchant:', merchantId, 'amount:', amount);
+        
         const users = DB.get('users') || [];
         let merchant = users.find(u => u.role === 'merchant' && u.id === merchantId);
+        
+        // Try to fetch from Supabase if not found locally
         if (!merchant && window.SyncService?.fetchMerchantFromSupabase) {
+            console.log('[QR Payment] Fetching merchant from Supabase...');
             await window.SyncService.fetchMerchantFromSupabase(merchantId);
             const refreshedUsers = DB.get('users') || [];
             merchant = refreshedUsers.find(u => u.role === 'merchant' && u.id === merchantId);
         }
+        
+        // Create merchant from snapshot if available
         if (!merchant && merchantSnapshot?.n) {
+            console.log('[QR Payment] Creating merchant from snapshot');
             merchant = {
                 id: merchantId,
                 role: 'merchant',
@@ -2420,15 +2514,21 @@ const app = {
                 pin: merchantSnapshot.s || null
             };
         }
+        
         if (!merchant) {
-            alert(app.lang === 'ar' ? 'حدث خطأ: التاجر غير موجود' : 'Error: Merchant not found');
+            console.error('[QR Payment] Merchant not found:', merchantId);
+            alert(app.lang === 'ar' ? 'التاجر غير موجود. يرجى التأكد من صحة الكود.' : 'Merchant not found. Please verify the QR code.');
             return;
         }
+        
         const paymentAmount = Number(amount);
         if (!Number.isFinite(paymentAmount) || paymentAmount <= 0) {
+            console.error('[QR Payment] Invalid amount:', amount);
             alert(app.lang === 'ar' ? 'قيمة QR غير صالحة: المبلغ غير متوفر' : 'Invalid QR data: amount is missing');
             return;
         }
+        
+        console.log('[QR Payment] Merchant found:', merchant.name, 'Amount:', paymentAmount);
         const merchantLocation = merchant.location || merchant.wilaya || merchantSnapshot?.loc || '';
         const merchantActivity = merchant.activity || merchantSnapshot?.ac || '';
 
@@ -2437,7 +2537,24 @@ const app = {
         if (!modal) {
             modal = document.createElement('div');
             modal.id = 'qr-payment-board-modal';
-            modal.className = 'fixed inset-0 z-[200] hidden items-center justify-center px-4';
+            modal.className = 'fixed inset-0 z-[200] flex items-center justify-center px-4';
+            
+            const lang = app.lang || 'ar';
+            const confirmText = lang === 'ar' ? 'تأكيد الدفع' : lang === 'fr' ? 'Confirmer le paiement' : 'Confirm Payment';
+            const cancelText = lang === 'ar' ? 'إلغاء' : lang === 'fr' ? 'Annuler' : 'Cancel';
+            const noticeText = lang === 'ar' 
+                ? 'تنبيه: بالضغط على تأكيد الدفع سيتم الخصم مباشرة من رصيدك إلى رصيد التاجر دون طلب PIN.' 
+                : lang === 'fr'
+                ? 'Attention: en confirmant le paiement, le montant sera débité directement de votre solde vers le solde du commerçant sans code PIN.'
+                : 'Notice: by confirming payment, amount will be deducted directly from your balance to merchant balance without PIN.';
+            const merchantLabel = lang === 'ar' ? 'التاجر' : lang === 'fr' ? 'Commerçant' : 'Merchant';
+            const activityLabel = lang === 'ar' ? 'النشاط' : lang === 'fr' ? 'Activité' : 'Activity';
+            const locationLabel = lang === 'ar' ? 'الموقع' : lang === 'fr' ? 'Lieu' : 'Location';
+            const storeLabel = lang === 'ar' ? 'رقم المتجر' : lang === 'fr' ? 'Numéro du magasin' : 'Store Number';
+            const invoiceLabel = lang === 'ar' ? 'رقم الفاتورة' : lang === 'fr' ? 'Numéro de facture' : 'Invoice Number';
+            const totalLabel = lang === 'ar' ? 'المبلغ الإجمالي' : lang === 'fr' ? 'Montant total' : 'Total Amount';
+            const subtitle = lang === 'ar' ? 'سيتم خصم المبلغ التالي من رصيدك' : lang === 'fr' ? 'Le montant suivant sera débité de votre solde' : 'The following amount will be deducted from your balance';
+            
             modal.innerHTML = `
                 <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="app.closeQRPaymentBoard()"></div>
                 <div class="glass-effect bg-slate-900/95 border border-white/10 w-full max-w-md rounded-[2.5rem] p-8 relative animate-slide-up overflow-hidden shadow-2xl">
@@ -2449,45 +2566,46 @@ const app = {
                         <div class="w-20 h-20 bg-primary/10 text-primary rounded-full flex items-center justify-center text-3xl mx-auto mb-4">
                             <i class="fa-solid fa-store"></i>
                         </div>
-                        <h3 class="text-2xl font-bold text-white mb-2">${app.lang === 'ar' ? 'تأكيد الدفع' : 'Confirm Payment'}</h3>
-                        <p class="text-slate-400 text-sm">${app.lang === 'ar' ? 'سيتم خصم المبلغ التالي من رصيدك' : 'The following amount will be deducted from your balance'}</p>
+                        <h3 class="text-2xl font-bold text-white mb-2">${confirmText}</h3>
+                        <p class="text-slate-400 text-sm">${subtitle}</p>
                     </div>
                     
                     <div class="bg-slate-800/50 rounded-2xl p-6 border border-slate-700/50 mb-6">
                         <div class="flex justify-between items-center mb-4">
-                            <span class="text-slate-400">${app.lang === 'ar' ? 'التاجر' : 'Merchant'}</span>
+                            <span class="text-slate-400">${merchantLabel}</span>
                             <span class="text-white font-bold" id="qr-board-merchant-name"></span>
                         </div>
                         <div class="flex justify-between items-center mb-4">
-                            <span class="text-slate-400">${app.lang === 'ar' ? 'النشاط' : 'Activity'}</span>
+                            <span class="text-slate-400">${activityLabel}</span>
                             <span class="text-white font-medium" id="qr-board-merchant-activity"></span>
                         </div>
                         <div class="flex justify-between items-center mb-4">
-                            <span class="text-slate-400">${app.lang === 'ar' ? 'الموقع' : 'Location'}</span>
+                            <span class="text-slate-400">${locationLabel}</span>
                             <span class="text-white font-medium" id="qr-board-merchant-location"></span>
                         </div>
                         <div class="flex justify-between items-center mb-4">
-                            <span class="text-slate-400">${app.lang === 'ar' ? 'رقم المتجر' : 'Store Number'}</span>
+                            <span class="text-slate-400">${storeLabel}</span>
                             <span class="text-white font-medium" id="qr-board-store-number"></span>
                         </div>
                         <div class="flex justify-between items-center mb-4">
-                            <span class="text-slate-400">${app.lang === 'ar' ? 'رقم الفاتورة' : 'Invoice Number'}</span>
+                            <span class="text-slate-400">${invoiceLabel}</span>
                             <span class="text-white font-medium font-mono" id="qr-board-invoice-number"></span>
                         </div>
                         <div class="h-px bg-slate-700 my-4"></div>
                         <div class="flex justify-between items-center">
-                            <span class="text-slate-300 font-bold">${app.lang === 'ar' ? 'المبلغ الإجمالي' : 'Total Amount'}</span>
+                            <span class="text-slate-300 font-bold">${totalLabel}</span>
                             <span class="text-3xl font-black text-primary" id="qr-board-amount"></span>
                         </div>
                     </div>
-                    <p class="text-xs text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 mb-4" id="qr-board-warning-text"></p>
+                    <p class="text-xs text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 mb-4" id="qr-board-warning-text">${noticeText}</p>
                     
                     <div class="space-y-4">
-                        <button onclick="app.confirmQRPayment()" id="qr-confirm-pay-btn" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-green-900/20">
-                            ${app.lang === 'ar' ? 'تأكيد الدفع' : 'Confirm Payment'}
+                        <button onclick="app.confirmQRPayment()" id="qr-confirm-pay-btn" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-green-900/20 flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-check-circle"></i>
+                            <span>${confirmText}</span>
                         </button>
                         <button onclick="app.closeQRPaymentBoard()" class="w-full text-slate-400 hover:text-white text-sm font-bold transition-all">
-                            ${app.lang === 'ar' ? 'إلغاء' : 'Cancel'}
+                            ${cancelText}
                         </button>
                     </div>
                 </div>
@@ -2503,9 +2621,14 @@ const app = {
         document.getElementById('qr-board-merchant-location').textContent = merchantLocation;
         document.getElementById('qr-board-store-number').textContent = storeNumber;
         document.getElementById('qr-board-invoice-number').textContent = invoiceNumber;
-        document.getElementById('qr-board-warning-text').textContent = app.lang === 'ar'
+        
+        const lang = app.lang || 'ar';
+        document.getElementById('qr-board-warning-text').textContent = lang === 'ar'
             ? 'تنبيه: بالضغط على تأكيد الدفع سيتم الخصم مباشرة من رصيدك إلى رصيد التاجر دون طلب PIN.'
+            : lang === 'fr'
+            ? 'Attention: en confirmant le paiement, le montant sera débité directement de votre solde vers le solde du commerçant sans code PIN.'
             : 'Notice: by confirming payment, amount will be deducted directly from your balance to merchant balance without PIN.';
+        
         document.getElementById('qr-board-amount').textContent = `${paymentAmount.toLocaleString()} دج`;
 
         // Store pending transaction
@@ -2519,19 +2642,36 @@ const app = {
             merchantLocation
         };
 
+        // Show modal - remove hidden class and add flex
         modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        
+        console.log('[QR Payment] Modal shown, button should be visible');
     },
 
     closeQRPaymentBoard: () => {
         const modal = document.getElementById('qr-payment-board-modal');
-        if (modal) modal.classList.add('hidden');
+        if (modal) {
+            modal.classList.remove('flex');
+            modal.classList.add('hidden');
+        }
     },
 
     confirmQRPayment: () => {
+        console.log('[QR Payment] confirmQRPayment called');
+        
         if (!app.currentPendingTx) {
             alert(app.lang === 'ar' ? 'لا توجد عملية دفع معلّقة' : 'No pending payment found');
             return;
         }
+        
+        // Check subscription plan for customer
+        if (app.user?.role === 'customer' && !app.user.subscription_plan) {
+            alert(app.lang === 'ar' ? 'يرجى تفعيل الاشتراك أولاً للدفع' : app.lang === 'fr' ? 'Veuillez activer votre abonnement d\'abord pour effectuer des paiements' : 'Please activate your subscription first to make payments');
+            router.navigate('/pricing');
+            return;
+        }
+        
         const { amount, merchantId, merchantName, invoiceNumber, storeNumber, merchantActivity, merchantLocation } = app.currentPendingTx;
         const t = app.translations[app.lang];
         
