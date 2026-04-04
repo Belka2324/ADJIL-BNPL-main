@@ -8,10 +8,15 @@
 
     <!-- PWA Settings -->
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#2563eb">
+    <meta name="theme-color" content="#10b981">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="apple-touch-icon" href="assets/A.svg">
+    <meta name="apple-mobile-web-app-title" content="ADJIL">
+    <link rel="apple-touch-icon" href="assets/Adjil logo.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="assets/Adjil logo.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="assets/Adjil logo.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="assets/Adjil logo.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/Adjil logo.png">
 
     <!-- External Libraries -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -2190,8 +2195,8 @@
             </button>
         </div>
         <div class="text-white text-center mb-6 z-10 space-y-2 mt-12 w-full max-w-sm">
-            <h3 class="text-2xl font-black">مسح كود التاجر</h3>
-            <p class="text-white/70 text-sm">وجّه الكاميرا نحو الكود (QR) لإتمام الدفع</p>
+            <h3 class="text-2xl font-black" id="qr-scanner-title">مسح كود التاجر</h3>
+            <p class="text-white/70 text-sm" id="qr-scanner-desc">وجّه الكاميرا نحو الكود (QR) لإتمام الدفع</p>
         </div>
         <div id="qr-reader"
             class="w-full max-w-sm overflow-hidden rounded-[2rem] border-2 border-primary/50 bg-black aspect-square drop-shadow-[0_0_15px_rgba(37,99,235,0.3)]">
@@ -2200,7 +2205,7 @@
         <div class="mt-8">
             <button id="qr-swap-camera"
                 class="px-6 py-3 bg-white/10 text-white rounded-full text-sm font-bold border border-white/20 hover:bg-white/20 hidden">
-                <i class="fa-solid fa-camera-rotate mr-2"></i> تبديل الكاميرا
+                <i class="fa-solid fa-camera-rotate mr-2"></i> <span data-t="swap_camera">تبديل الكاميرا</span>
             </button>
         </div>
     </div>

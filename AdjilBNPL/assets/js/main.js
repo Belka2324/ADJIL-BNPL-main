@@ -2045,17 +2045,16 @@ const app = {
 
         container.innerHTML = '';
         
-        // Clean JSON data for QR code
-        const qrData = JSON.stringify({
-            m: app.user.id,
-            a: app.posAmount,
-            n: (app.user.name || '').substring(0, 50),
-            ac: (app.user.activity || '').substring(0, 30),
-            loc: (app.user.location || app.user.wilaya || '').substring(0, 30),
-            s: app.user.pin ? String(app.user.pin).padStart(4, '0') : String(app.user.id || '').slice(0, 8)
-        });
+        // Create ultra-compact QR data using simple string format instead of JSON
+        // Format: ID|AMT|NAME|PIN
+        const userId = app.user.id.replace(/-/g, '').substring(0, 12);
+        const name = (app.user.name || '').replace(/[^a-zA-Z0-9]/g, '').substring(0, 8);
+        const pin = app.user.pin ? String(app.user.pin).padStart(4, '0') : '0000';
+        const qrData = `${userId}|${app.posAmount}|${name}|${pin}`;
         
         console.log('[QR] Generating for merchant:', app.user.id, 'amount:', app.posAmount, 'data:', qrData);
+        
+        console.log('[QR] Generating for merchant:', app.user.id, 'amount:', app.posAmount, 'data length:', qrData.length);
 
         try {
             new QRCodeLib(container, {
@@ -2423,7 +2422,24 @@ const app = {
             console.error('[QR Scanner] Modal not found');
             return;
         }
+        
+        // Show modal properly
         modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        
+        // Update text based on language
+        const titleEl = document.getElementById('qr-scanner-title');
+        const descEl = document.getElementById('qr-scanner-desc');
+        const lang = app.lang || 'ar';
+        
+        if (titleEl) {
+            titleEl.textContent = lang === 'ar' ? 'مسح كود التاجر' : lang === 'fr' ? 'Scanner le code Marchand' : 'Scan Merchant QR';
+        }
+        if (descEl) {
+            descEl.textContent = lang === 'ar' ? 'وجّه الكاميرا نحو الكود (QR) لإتمام الدفع' 
+                : lang === 'fr' ? 'Pointez la caméra vers le code QR pour effectuer le paiement' 
+                : 'Point camera at QR code to complete payment';
+        }
 
         if (!app.qrScannerObj) {
             app.qrScannerObj = new Html5Qrcode("qr-reader");
@@ -2454,7 +2470,10 @@ const app = {
     },
     stopQRScanner: () => {
         const modal = document.getElementById('qr-scanner-modal');
-        if (modal) modal.classList.add('hidden');
+        if (modal) {
+            modal.classList.remove('flex');
+            modal.classList.add('hidden');
+        }
 
         if (app.qrScannerObj && app.qrScannerObj.isScanning) {
             app.qrScannerObj.stop().catch(console.error);
@@ -2464,35 +2483,61 @@ const app = {
         console.log('[QR] Scan result:', decodedText);
         app.stopQRScanner();
 
+        // Try new pipe-separated format first: ID|AMT|NAME|PIN
+        const parts = decodedText.split('|');
+        if (parts.length >= 2) {
+            const merchantIdPart = parts[0];
+            const amount = parts[1];
+            
+            // Check if it looks like our format (first part is hex/ID, second is number)
+            if (/^[a-fA-F0-9]+$/.test(merchantIdPart) && /^\d+$/.test(amount)) {
+                console.log('[QR] Valid payment QR format:', merchantIdPart, amount);
+                setTimeout(() => app.openQRPaymentBoard(merchantIdPart, amount, {
+                    n: parts[2] || '',
+                    s: parts[3] || ''
+                }), 300);
+                return;
+            }
+        }
+
+        // Try JSON format (for backwards compatibility)
         try {
             const data = JSON.parse(decodedText);
             if (data.m && data.a) {
-                console.log('[QR] Valid payment QR for merchant:', data.m, 'amount:', data.a);
-                // Delay slightly to allow the camera to stop cleanly before opening next modal
+                console.log('[QR] Valid payment QR (JSON):', data.m, data.a);
                 setTimeout(() => app.openQRPaymentBoard(data.m, data.a, data), 300);
-            } else {
-                throw new Error("Invalid format");
+                return;
             }
         } catch (e) {
-            console.log('[QR] Not JSON, trying as merchant ID');
-            if (decodedText.startsWith('adjil-merch-') || decodedText.length > 5) {
-                setTimeout(() => app.openQRPaymentBoard(decodedText, ''), 300);
-            } else {
-                alert(app.lang === 'ar' ? 'رمز QR غير صالح لمعاملة الدفع' : 'Invalid QR Code for payment');
-            }
+            // Not JSON either
         }
-    },
-            } else {
-                alert(app.lang === 'ar' ? 'رمز QR غير صالح لمعاملة الدفع' : 'Invalid QR Code for payment');
-            }
+
+        // Try as merchant ID
+        if (decodedText.startsWith('adjil-merch-') || decodedText.length > 5) {
+            setTimeout(() => app.openQRPaymentBoard(decodedText, ''), 300);
+        } else {
+            alert(app.lang === 'ar' ? 'رمز QR غير صالح لمعاملة الدفع' : 'Invalid QR Code for payment');
         }
     },
 
     openQRPaymentBoard: async (merchantId, amount, merchantSnapshot = null) => {
         console.log('[QR Payment] Opening for merchant:', merchantId, 'amount:', amount);
         
+        let merchant = null;
         const users = DB.get('users') || [];
-        let merchant = users.find(u => u.role === 'merchant' && u.id === merchantId);
+        
+        // Try to find merchant by exact ID
+        merchant = users.find(u => u.role === 'merchant' && u.id === merchantId);
+        
+        // If not found, try partial ID match (UUID without dashes)
+        if (!merchant) {
+            merchant = users.find(u => u.role === 'merchant' && u.id.replace(/-/g, '').startsWith(merchantId));
+        }
+        
+        // If still not found, try matching by name from snapshot
+        if (!merchant && merchantSnapshot?.n) {
+            merchant = users.find(u => u.role === 'merchant' && u.name === merchantSnapshot.n);
+        }
         
         // Try to fetch from Supabase if not found locally
         if (!merchant && window.SyncService?.fetchMerchantFromSupabase) {
@@ -2500,6 +2545,9 @@ const app = {
             await window.SyncService.fetchMerchantFromSupabase(merchantId);
             const refreshedUsers = DB.get('users') || [];
             merchant = refreshedUsers.find(u => u.role === 'merchant' && u.id === merchantId);
+            if (!merchant) {
+                merchant = refreshedUsers.find(u => u.role === 'merchant' && u.id.replace(/-/g, '').startsWith(merchantId));
+            }
         }
         
         // Create merchant from snapshot if available
@@ -2509,8 +2557,8 @@ const app = {
                 id: merchantId,
                 role: 'merchant',
                 name: merchantSnapshot.n,
-                activity: merchantSnapshot.ac || '',
-                location: merchantSnapshot.loc || '',
+                activity: '',
+                location: '',
                 pin: merchantSnapshot.s || null
             };
         }
@@ -2683,13 +2731,6 @@ const app = {
 
         if (app.user?.status && app.user.status !== 'active') {
             alert(app.lang === 'ar' ? 'الحساب غير نشط' : 'Account is inactive');
-            return;
-        }
-        
-        // Check subscription plan for customer
-        if (app.user?.role === 'customer' && !app.user.subscription_plan) {
-            alert(app.lang === 'ar' ? 'يرجى تفعيل الاشتراك أولاً للدفع' : app.lang === 'fr' ? 'Veuillez activer votre abonnement d\'abord pour effectuer des paiements' : 'Please activate your subscription first to make payments');
-            router.navigate('/pricing');
             return;
         }
         
