@@ -122,34 +122,32 @@ export default function Settings() {
     }
     setCreating(true)
     
-    if (hasSupabase && supabase) {
-      try {
-        const nameParts = newName.trim().split(' ')
-        const firstName = nameParts[0] || ''
-        const lastName = nameParts.slice(1).join(' ') || ''
-        
-        await createStaff({
-          email: newEmail,
-          password: newPassword,
-          first_name: firstName,
-          last_name: lastName,
-          username: newUsername,
-          role: newRole
-        })
-        
-        alert('تم إنشاء الحساب بنجاح!')
-        
-        // Clear form
-        setNewEmail('')
-        setNewPassword('')
-        setNewUsername('')
-        setNewName('')
-        setNewRole('support')
-        
-      } catch (err: any) {
-        console.error('Error creating team member:', err)
-        alert('خطأ في إنشاء الحساب: ' + (err.message || 'فشل الاتصال'))
-      }
+    try {
+      const nameParts = newName.trim().split(' ')
+      const firstName = nameParts[0] || ''
+      const lastName = nameParts.slice(1).join(' ') || ''
+      
+      await createStaff({
+        email: newEmail,
+        password: newPassword,
+        first_name: firstName,
+        last_name: lastName,
+        username: newUsername,
+        role: newRole
+      })
+      
+      alert('تم إنشاء الحساب بنجاح!\n\nاسم المستخدم: ' + newUsername + '\nكلمة المرور: ' + newPassword + '\n\nالرجاء حفظ هذه البيانات للدخول القادم.')
+      
+      // Clear form
+      setNewEmail('')
+      setNewPassword('')
+      setNewUsername('')
+      setNewName('')
+      setNewRole('support')
+      
+    } catch (err: any) {
+      console.error('Error creating team member:', err)
+      alert('خطأ في إنشاء الحساب: ' + (err.message || 'فشل الاتصال'))
     }
     setCreating(false)
   }
