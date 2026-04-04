@@ -1,2 +1,5 @@
-/admin/* /ADMIN-PORTAL/dist/:splat  200
-/* /AdjilBNPL/:splat          200
+# Admin Portal routes
+/admin/* /admin/index.html 200
+
+# AdjilBNPL default
+/* /index.html 200
