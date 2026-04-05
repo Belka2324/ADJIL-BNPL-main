@@ -14,14 +14,14 @@
 # Admin Portal
 [[redirects]]
   from = "/admin"
-  to = "/ADMIN-PORTAL/dist/index.html"
+  to = "/adjilbnpl/admin/index.html"
   status = 200
 [[redirects]]
   from = "/admin/*"
-  to = "/ADMIN-PORTAL/dist/index.html"
+  to = "/adjilbnpl/admin/index.html"
   status = 200
 
 [[redirects]]
   from = "/ADMIN-PORTAL/*"
-  to = "/ADMIN-PORTAL/dist/index.html"
+  to = "/adjilbnpl/admin/index.html"
   status = 200
