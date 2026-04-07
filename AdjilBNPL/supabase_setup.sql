@@ -141,6 +141,9 @@ CREATE POLICY "Allow public read access on tickets" ON public.support_tickets FO
 -- 5. Functions & Procedures
 -- ==========================================
 
+-- Drop existing function if exists (required before changing return type)
+DROP FUNCTION IF EXISTS process_transaction(UUID,UUID,DECIMAL,TEXT,TEXT,TEXT,TEXT,TEXT,TEXT,TEXT,TEXT);
+
 -- Function to handle atomic transaction processing
 CREATE OR REPLACE FUNCTION process_transaction(
     p_customer_id UUID,
