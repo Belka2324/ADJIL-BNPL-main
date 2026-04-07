@@ -24,99 +24,173 @@ window.tailwind.config = {
 if (!window.AuthService) {
     window.AuthService = {
         async login(identifier, password) {
+            console.log('[Auth] Login attempt:', identifier);
+            
             // Try Supabase Auth first
             if (window.supabaseClient) {
-                const { data, error } = await window.supabaseClient.auth.signInWithPassword({
-                    email: identifier,
-                    password: password
-                });
-                
-                // If Supabase login succeeds
-                if (!error && data.user) {
-                    const { data: userData } = await window.supabaseClient
-                        .from('users')
-                        .select('*')
-                        .eq('id', data.user.id)
-                        .single();
+                try {
+                    const { data, error } = await window.supabaseClient.auth.signInWithPassword({
+                        email: identifier,
+                        password: password
+                    });
                     
-                    const sessionUser = userData || { 
-                        id: data.user.id, 
-                        email: data.user.email,
-                        role: 'customer'
-                    };
+                    console.log('[Auth] Supabase response:', { error, hasUser: !!data?.user });
+                    
+                    // If Supabase login succeeds
+                    if (!error && data.user) {
+                        // Fetch from profiles table to get balance and full data
+                        let sessionUser = {
+                            id: data.user.id,
+                            email: data.user.email,
+                            role: 'customer',
+                            status: 'active'
+                        };
+                        
+                        // Try profiles table first
+                        const { data: profileData } = await window.supabaseClient
+                            .from('profiles')
+                            .select('*')
+                            .eq('id', data.user.id)
+                            .single();
+                        
+                        if (profileData) {
+                            sessionUser = {
+                                ...sessionUser,
+                                name: profileData.full_name || profileData.name,
+                                phone: profileData.phone,
+                                role: profileData.role || 'customer',
+                                status: profileData.status || 'active',
+                                balance: profileData.balance || 0,
+                                credit_limit: profileData.credit_limit || 0,
+                                subscription_plan: profileData.subscription_plan
+                            };
+                        } else {
+                            // Fallback to users table
+                            const { data: userData } = await window.supabaseClient
+                                .from('users')
+                                .select('*')
+                                .eq('id', data.user.id)
+                                .single();
+                            
+                            if (userData) {
+                                sessionUser = {
+                                    ...sessionUser,
+                                    name: userData.name,
+                                    phone: userData.phone,
+                                    role: userData.role || 'customer',
+                                    status: userData.status || 'active',
+                                    balance: userData.balance || 0,
+                                    credit_limit: userData.credit_limit || 0,
+                                    subscription_plan: userData.subscription_plan
+                                };
+                            }
+                        }
 
-                    const allowedRoles = ['customer', 'merchant', 'admin'];
-                    if (!allowedRoles.includes(sessionUser.role)) {
-                        await window.supabaseClient.auth.signOut();
-                        throw new Error('role_not_allowed');
+                        const allowedRoles = ['customer', 'merchant', 'admin'];
+                        if (!allowedRoles.includes(sessionUser.role)) {
+                            await window.supabaseClient.auth.signOut();
+                            throw new Error('role_not_allowed');
+                        }
+
+                        localStorage.setItem('adjil_session', JSON.stringify(sessionUser));
+                        console.log('[Auth] Login successful via Supabase');
+                        return sessionUser;
                     }
-
-                    localStorage.setItem('adjil_session', JSON.stringify(sessionUser));
-                    return sessionUser;
-                }
-                
-                // If Supabase fails with "Invalid credentials", try localStorage fallback
-                // Otherwise, throw the error
-                if (error && !error.message.includes('Invalid login credentials')) {
-                    throw error;
+                    
+                    // If Supabase fails with "Invalid credentials", try localStorage fallback
+                    if (error && error.message?.includes('Invalid login credentials')) {
+                        console.log('[Auth] Falling back to localStorage');
+                    } else if (error) {
+                        console.error('[Auth] Supabase error:', error.message);
+                        throw error;
+                    }
+                } catch (err) {
+                    console.error('[Auth] Exception:', err);
+                    // Continue to localStorage fallback
                 }
             }
             
             // Fallback to LocalStorage for offline/demo (seed data users)
+            console.log('[Auth] Trying localStorage fallback');
             const users = JSON.parse(localStorage.getItem('adjil_users') || '[]');
             const user = users.find(u => (u.email === identifier || u.phone === identifier) && u.password === password);
             if (user) {
                 localStorage.setItem('adjil_session', JSON.stringify(user));
+                console.log('[Auth] Login successful via localStorage');
                 return user;
             }
-            return null;
+            console.log('[Auth] Login failed - user not found');
+            throw new Error('Invalid credentials');
         },
         async signUp(payload) {
+            console.log('[Auth] Signup attempt:', payload.email);
+            
             if (window.supabaseClient) {
-                const { data, error } = await window.supabaseClient.auth.signUp({
-                    email: payload.email,
-                    password: payload.password,
-                    options: {
-                        data: {
-                            name: payload.name,
-                            username: payload.username || payload.email,
-                            role: payload.role || 'customer',
-                            phone: payload.phone || null,
-                            pin: payload.pin || null,
-                            card_number: payload.card_number || null,
-                            wilaya: payload.wilaya || null
+                try {
+                    const { data, error } = await window.supabaseClient.auth.signUp({
+                        email: payload.email,
+                        password: payload.password,
+                        options: {
+                            data: {
+                                name: payload.name,
+                                username: payload.username || payload.email,
+                                role: payload.role || 'customer',
+                                phone: payload.phone || null,
+                                pin: payload.pin || null,
+                                card_number: payload.card_number || null,
+                                wilaya: payload.wilaya || null
+                            }
                         }
+                    });
+                    if (error) {
+                        if (error.message.includes('already registered') || error.message.includes('already exists')) {
+                            throw new Error('User already exists');
+                        }
+                        throw error;
                     }
-                });
-                if (error) {
-                    if (error.message.includes('already registered') || error.message.includes('already exists')) {
-                        throw new Error('User already exists');
+                    if (data.user) {
+                        if (data.user.identities && data.user.identities.length === 0) {
+                            throw new Error('User already exists');
+                        }
+                        const user = {
+                            id: data.user.id,
+                            email: data.user.email,
+                            ...payload,
+                            status: payload.status || 'pending'
+                        };
+                        // Try to insert into profiles (new table) first, then users as fallback
+                        try {
+                            await window.supabaseClient
+                                .from('profiles')
+                                .upsert([{
+                                    id: user.id,
+                                    email: user.email,
+                                    full_name: user.name,
+                                    phone: user.phone,
+                                    role: user.role || 'customer',
+                                    status: 'pending'
+                                }], { onConflict: 'id' });
+                        } catch (profileErr) {
+                            console.warn('[AuthService.signUp] profiles upsert failed, trying users:', profileErr);
+                            try {
+                                await window.supabaseClient
+                                    .from('users')
+                                    .upsert([user], { onConflict: 'id' });
+                            } catch (usersErr) {
+                                console.warn('[AuthService.signUp] users upsert also failed:', usersErr);
+                            }
+                        }
+                        localStorage.setItem('adjil_session', JSON.stringify(user));
+                        console.log('[Auth] Signup successful via Supabase');
+                        return { user, mode: 'supabase' };
                     }
-                    throw error;
-                }
-                if (data.user) {
-                    if (data.user.identities && data.user.identities.length === 0) {
-                        throw new Error('User already exists');
-                    }
-                    const user = {
-                        id: data.user.id,
-                        email: data.user.email,
-                        ...payload,
-                        status: payload.status || 'pending'
-                    };
-                    const { password, ...safeUserRow } = user;
-                    try {
-                        await window.supabaseClient
-                            .from('users')
-                            .upsert([safeUserRow], { onConflict: 'id' });
-                    } catch (syncErr) {
-                        console.warn('[AuthService.signUp] users upsert failed:', syncErr);
-                    }
-                    localStorage.setItem('adjil_session', JSON.stringify(user));
-                    return { user, mode: 'supabase' };
+                } catch (err) {
+                    console.error('[Auth] Signup error:', err);
+                    // Fall through to local signup
                 }
             }
-            // Fallback
+            // Fallback - local signup
+            console.log('[Auth] Falling back to local signup');
             const users = JSON.parse(localStorage.getItem('adjil_users') || '[]');
             if (users.some(u => (u.email && u.email === payload.email) || (u.phone && u.phone === payload.phone))) {
                 throw new Error('User already exists');
@@ -130,6 +204,7 @@ if (!window.AuthService) {
             users.push(user);
             localStorage.setItem('adjil_users', JSON.stringify(users));
             localStorage.setItem('adjil_session', JSON.stringify(user));
+            console.log('[Auth] Signup successful via local');
             return { user, mode: 'local' };
         },
         async signOut() {
@@ -3983,6 +4058,46 @@ const app = {
             router.navigate('/sub-confirm');
         }
     },
+    selectedPaymentGateway: null,
+    formatCardNumber: function(input) {
+        let value = input.value.replace(/\D/g, '').slice(0, 16);
+        value = value.replace(/(\d{4})/g, '$1 ').trim();
+        input.value = value;
+    },
+    formatExpiry: function(input) {
+        let value = input.value.replace(/\D/g, '').slice(0, 4);
+        if (value.length >= 2) {
+            value = value.slice(0, 2) + '/' + value.slice(2);
+        }
+        input.value = value;
+    },
+    selectPaymentGateway: (gateway) => {
+        const satimBtn = document.getElementById('sub-gateway-satim');
+        const baridimobBtn = document.getElementById('sub-gateway-baridimob');
+        const cardSection = document.getElementById('sub-card-section');
+        const buttonsDiv = document.getElementById('sub-buttons');
+        
+        // Reset gateway buttons
+        satimBtn?.classList.replace('border-emerald-500', 'border-slate-700');
+        satimBtn?.classList.replace('bg-slate-700', 'bg-slate-800');
+        baridimobBtn?.classList.replace('border-blue-500', 'border-slate-700');
+        baridimobBtn?.classList.replace('bg-slate-700', 'bg-slate-800');
+        
+        // Highlight selected gateway
+        if (gateway === 'satim') {
+            satimBtn?.classList.replace('border-slate-700', 'border-emerald-500');
+            satimBtn?.classList.replace('bg-slate-800', 'bg-slate-700');
+        } else if (gateway === 'baridimob') {
+            baridimobBtn?.classList.replace('border-slate-700', 'border-blue-500');
+            baridimobBtn?.classList.replace('bg-slate-800', 'bg-slate-700');
+        }
+        
+        // Show card input section
+        cardSection?.classList.remove('hidden');
+        buttonsDiv?.classList.remove('hidden');
+        app.selectedPaymentGateway = gateway;
+        app.selectedBankType = gateway;
+    },
     selectBankTypeForSub: (type) => {
         const btnEdahabia = document.getElementById('sub-btn-edahabia');
         const btnCcp = document.getElementById('sub-btn-ccp');
@@ -4068,8 +4183,22 @@ const app = {
 
         const btn = document.getElementById('btn-confirm-sub');
         const originalHtml = btn.innerHTML;
-        btn.disabled = true;
-        btn.innerHTML = `<i class="fa-solid fa-circle-notch animate-spin"></i> ${app.lang === 'ar' ? 'جاري التفعيل...' : app.lang === 'fr' ? 'Activation en cours...' : 'Activating...'}`;
+        const buttonsDiv = document.getElementById('sub-buttons');
+        const loadingDiv = document.getElementById('sub-loading');
+        const successDiv = document.getElementById('sub-success');
+        const cardSection = document.getElementById('sub-card-section');
+
+        // Show loading, hide buttons and card
+        buttonsDiv?.classList.add('hidden');
+        cardSection?.classList.add('hidden');
+        loadingDiv?.classList.remove('hidden');
+
+        // Simulate payment processing (3 seconds)
+        await new Promise(resolve => setTimeout(resolve, 3000));
+
+        // Show success
+        loadingDiv?.classList.add('hidden');
+        successDiv?.classList.remove('hidden');
 
         const plan = app.pendingPlan;
         const limit = plan === 'monthly' ? 10000 : plan === '6months' ? 15000 : 25000;
@@ -4108,7 +4237,8 @@ const app = {
                         balance: limit,
                         status: 'active',
                         bank_rib: maskedCard,
-                        doc_rib: maskedCard
+                        doc_rib: maskedCard,
+                        payment_gateway: app.selectedPaymentGateway
                     })
                     .eq('id', app.user.id);
                 
@@ -4123,7 +4253,8 @@ const app = {
                         plan: plan,
                         credit_limit: limit,
                         status: 'approved',
-                        admin_notes: 'تم التفعيل مباشرة من قبل المستخدم'
+                        payment_gateway: app.selectedPaymentGateway,
+                        admin_notes: 'تم التفعيل مباشرة من قبل المستخدم عبر ' + (app.selectedPaymentGateway === 'satim' ? 'SATIM' : 'Baridimob')
                     });
                     
                 console.log('[App] Subscription activated in Supabase');
@@ -4132,20 +4263,21 @@ const app = {
             }
         }
 
+        // Dispatch event for real-time sync
+        window.dispatchEvent(new CustomEvent('adjil:subscription:activated', { 
+            detail: { 
+                credit_limit: limit, 
+                balance: limit,
+                subscription_plan: plan 
+            } 
+        }));
+
         app.pendingPlan = null;
         
-        // Show success message
-        const successMsg = app.lang === 'ar' 
-            ? `تم تفعيل اشتراكك بنجاح! رصيدك الآن ${limit.toLocaleString()} دج`
-            : app.lang === 'fr'
-            ? `Votre abonnement est activé avec succès! Votre solde est maintenant de ${limit} DZD`
-            : `Your subscription is activated successfully! Your balance is now ${limit} DZD`;
-        alert(successMsg);
-        
-        router.navigate('/dashboard');
-        
-        btn.disabled = false;
-        btn.innerHTML = originalHtml;
+        // Navigate to dashboard after showing success for 2 more seconds
+        setTimeout(() => {
+            router.navigate('/dashboard');
+        }, 2000);
     },
     toggleDashView: (view) => {
         const isMerchant = app.user?.role === 'merchant';

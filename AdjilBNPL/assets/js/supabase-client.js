@@ -6,17 +6,28 @@
  */
 
 (function() {
+    // Support both Vite (VITE_) and Next.js (NEXT_PUBLIC_) environment variables
     const runtimeEnv = window.__ADJIL_ENV__ || {};
-    // Configuration
+    const viteUrl = typeof importMeta !== 'undefined' ? importMeta?.env?.VITE_SUPABASE_URL : undefined;
+    const viteKey = typeof importMeta !== 'undefined' ? importMeta?.env?.VITE_SUPABASE_ANON_KEY : undefined;
+    
+    // Configuration - priority: vite env > runtime env > window env > hardcoded fallback
     const CONFIG = {
-        URL: runtimeEnv.NEXT_PUBLIC_SUPABASE_URL || window.NEXT_PUBLIC_SUPABASE_URL || 'https://znlieqvasitebeyinrxi.supabase.co',
-        ANON_KEY: runtimeEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY || window.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpubGllcXZhc2l0ZWJleWlucnhpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2MDUyMjYsImV4cCI6MjA5MDE4MTIyNn0.AgUEfbPzHRRfi49n2L3c-oY9jOgRkvYGf-qqw6XejB4',
+        URL: viteUrl || runtimeEnv.NEXT_PUBLIC_SUPABASE_URL || window.NEXT_PUBLIC_SUPABASE_URL || 'https://znlieqvasitebeyinrxi.supabase.co',
+        ANON_KEY: viteKey || runtimeEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY || window.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpubGllcXZhc2l0ZWJleWlucnhpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2MDUyMjYsImV4cCI6MjA5MDE4MTIyNn0.AgUEfbPzHRRfi49n2L3c-oY9jOgRkvYGf-qqw6XejB4',
         STORAGE_KEYS: {
             SESSION: 'adjil_session',
             USERS: 'adjil_users',
             TRANSACTIONS: 'adjil_transactions'
         }
     };
+
+    // Log configuration status (without exposing keys)
+    console.log('[Supabase] Config loaded:', {
+        hasUrl: !!CONFIG.URL,
+        hasKey: !!CONFIG.ANON_KEY,
+        urlPreview: CONFIG.URL ? CONFIG.URL.substring(0, 30) + '...' : 'missing'
+    });
 
     // Initialize Client
     let supabaseClient = null;
