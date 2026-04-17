@@ -1,20 +1,15 @@
 /**
- * Adjil BNPL - Supabase Integration Client
- * Handles connection, authentication, and data synchronization with Supabase.
+ * Adjil BNPL - Supabase Integration Client (v2.0)
+ * Unified authentication and data sync with Supabase Auth + Database
  * 
  * Dependencies: @supabase/supabase-js (loaded via CDN in index.html)
  */
 
 (function() {
-    // Support both Vite (VITE_) and Next.js (NEXT_PUBLIC_) environment variables
-    const runtimeEnv = window.__ADJIL_ENV__ || {};
-    const viteUrl = typeof importMeta !== 'undefined' ? importMeta?.env?.VITE_SUPABASE_URL : undefined;
-    const viteKey = typeof importMeta !== 'undefined' ? importMeta?.env?.VITE_SUPABASE_ANON_KEY : undefined;
-    
-    // Configuration - priority: vite env > runtime env > window env > hardcoded fallback
+    // Configuration - Single Source of Truth
     const CONFIG = {
-        URL: viteUrl || runtimeEnv.NEXT_PUBLIC_SUPABASE_URL || window.NEXT_PUBLIC_SUPABASE_URL || 'https://znlieqvasitebeyinrxi.supabase.co',
-        ANON_KEY: viteKey || runtimeEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY || window.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpubGllcXZhc2l0ZWJleWlucnhpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2MDUyMjYsImV4cCI6MjA5MDE4MTIyNn0.AgUEfbPzHRRfi49n2L3c-oY9jOgRkvYGf-qqw6XejB4',
+        URL: 'https://znlieqvasitebeyinrxi.supabase.co',
+        ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpubGllcXZhc2l0ZWJleWlucnhpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2MDUyMjYsImV4cCI6MjA5MDE4MTIyNn0.AgUEfbPzHRRfi49n2L3c-oY9jOgRkvYGf-qqw6XejB4',
         STORAGE_KEYS: {
             SESSION: 'adjil_session',
             USERS: 'adjil_users',
@@ -22,30 +17,20 @@
         }
     };
 
-    // Log configuration status (without exposing keys)
-    console.log('[Supabase] Config loaded:', {
-        hasUrl: !!CONFIG.URL,
-        hasKey: !!CONFIG.ANON_KEY,
-        urlPreview: CONFIG.URL ? CONFIG.URL.substring(0, 30) + '...' : 'missing'
-    });
+    console.log('[Supabase] Initializing with URL:', CONFIG.URL);
 
     // Initialize Client
     let supabaseClient = null;
 
     function initClient() {
         if (!CONFIG.URL || !CONFIG.ANON_KEY) {
-            console.error('Missing Supabase runtime configuration');
+            console.error('[Supabase] Missing configuration');
             return;
         }
         if (window.supabase && typeof window.supabase.createClient === 'function') {
-            try {
-                supabaseClient = window.supabase.createClient(CONFIG.URL, CONFIG.ANON_KEY);
-                console.log('Supabase Client Initialized Successfully');
-            } catch (err) {
-                console.error('Failed to initialize Supabase client:', err);
-            }
+            supabaseClient = window.supabase.createClient(CONFIG.URL, CONFIG.ANON_KEY);
+            console.log('[Supabase] Client initialized successfully');
         } else if (typeof createClient === 'function') {
-            // Fallback if createClient is global
             supabaseClient = createClient(CONFIG.URL, CONFIG.ANON_KEY);
         } else {
             console.warn('Supabase library not found. Running in offline/local mode.');
@@ -126,11 +111,11 @@
 
     const AuthService = {
         _listeners: [],
+        _initialized: false,
 
         subscribe(callback) {
             if (typeof callback === 'function') {
                 this._listeners.push(callback);
-                // Immediately notify with current user
                 const user = this.getCurrentUser();
                 if (user) callback(user);
             }
@@ -151,114 +136,162 @@
         },
 
         getCurrentUser() {
-            return DataHelper.safeParse(CONFIG.STORAGE_KEYS.SESSION, null);
+            const session = DataHelper.safeParse(CONFIG.STORAGE_KEYS.SESSION, null);
+            return session;
         },
 
         async login(identifier, password) {
             if (!identifier || !password) return null;
+            console.log('[Auth] Login attempt:', identifier);
 
-            console.log('[Auth] Login attempt with identifier:', identifier);
-
-            // 1. Try Supabase Login (Data query for now, since we use custom auth logic in DB)
-            if (supabaseClient) {
-                try {
-                    // Use proper Supabase .or() syntax with filters
-                    const { data, error } = await supabaseClient
-                        .from('users')
-                        .select('*')
-                        .or(`email.eq.${encodeURIComponent(identifier)},phone.eq.${encodeURIComponent(identifier)}`)
-                        .eq('password', password)
-                        .maybeSingle();
-
-                    console.log('[Auth] Supabase query result:', { data, error });
-
-                    if (!error && data) {
-                        const user = DataHelper.normalizeUser(data);
-                        this._saveSession(user);
-                        this._updateLocalCache(user);
-                        console.log('[Auth] Login successful via Supabase');
-                        return user;
-                    } else if (error) {
-                        console.error('[Auth] Supabase query error:', error);
-                    }
-                } catch (err) {
-                    console.error('[Auth] Supabase login exception:', err);
-                }
-            } else {
-                console.warn('[Auth] No supabaseClient available');
+            if (!supabaseClient) {
+                console.warn('[Auth] No supabaseClient - using local fallback');
+                return this._localLogin(identifier, password);
             }
 
-            console.warn('[Auth] Login failed - user not found');
+            try {
+                // Use Supabase Auth
+                const { data, error } = await supabaseClient.auth.signInWithPassword({
+                    email: identifier,
+                    password: password
+                });
+
+                if (error) {
+                    console.error('[Auth] Supabase auth error:', error.message);
+                    // Fall back to local
+                    return this._localLogin(identifier, password);
+                }
+
+                if (data?.user) {
+                    // Get user profile from public.users
+                    const { data: profile } = await supabaseClient
+                        .from('users')
+                        .select('*')
+                        .eq('id', data.user.id)
+                        .single();
+
+                    const user = DataHelper.normalizeUser(profile || {
+                        id: data.user.id,
+                        email: data.user.email,
+                        name: data.user.email
+                    });
+                    user.auth_token = data.session.access_token;
+                    this._saveSession(user);
+                    console.log('[Auth] Login successful via Supabase Auth');
+                    return user;
+                }
+            } catch (err) {
+                console.error('[Auth] Login exception:', err);
+                return this._localLogin(identifier, password);
+            }
+
             return null;
         },
 
         async signup(userData) {
-            console.log('[Auth] Signup attempt with:', userData.email);
-            
-            // 1. Try Supabase Signup
-            if (supabaseClient) {
-                try {
-                    const dbRow = DataHelper.serializeUser(userData);
-                    console.log('[Auth] Serialized user for Supabase:', dbRow);
-                    
-                    // Note: In a real app, use supabase.auth.signUp()
-                    // Here we insert directly into users table as per current architecture
-                    const { data, error } = await supabaseClient
-                        .from('users')
-                        .insert([dbRow])
-                        .select()
-                        .single();
+            console.log('[Auth] Signup attempt:', userData.email);
 
-                    console.log('[Auth] Supabase insert result:', { data, error });
-
-                    if (!error && data) {
-                        const user = DataHelper.normalizeUser(data);
-                        this._saveSession(user);
-                        this._updateLocalCache(user);
-                        console.log('[Auth] Signup successful via Supabase');
-                        return { user, mode: 'online' };
-                    } else if (error) {
-                        console.error('[Auth] Supabase signup error:', error);
-                        if (error.code === '23505') { // Unique violation
-                            throw new Error('User already exists');
-                        }
-                        // Don't throw here - let it fall through to local
-                    }
-                } catch (err) {
-                    if (err.message === 'User already exists') throw err;
-                    console.warn('[Auth] Supabase signup failed, falling back to local:', err);
-                }
+            if (!supabaseClient) {
+                console.warn('[Auth] No supabaseClient - using local signup');
+                return this._localSignup(userData);
             }
 
-            // 2. Fallback: LocalStorage signup
-            console.warn('[Auth] Falling back to local signup');
             try {
-                const localUsers = DataHelper.safeParse(CONFIG.STORAGE_KEYS.USERS, []);
-                if (localUsers.some(u => (u.email && u.email === userData.email) || (u.phone && u.phone === userData.phone))) {
-                    throw new Error('User already exists');
+                // Use Supabase Auth
+                const { data, error } = await supabaseClient.auth.signUp({
+                    email: userData.email,
+                    password: userData.password || userData.passwordHash || 'default123',
+                    options: {
+                        data: {
+                            full_name: userData.name || userData.email,
+                            role: userData.role || 'customer'
+                        }
+                    }
+                });
+
+                if (error) {
+                    console.error('[Auth] Supabase signup error:', error.message);
+                    if (error.message.includes('already been registered')) {
+                        throw new Error('User already exists');
+                    }
+                    throw error;
                 }
-                const localUser = {
-                    ...userData,
-                    id: userData.id || (crypto.randomUUID && crypto.randomUUID()) || ('local-' + Date.now()),
-                    created_at: new Date().toISOString(),
-                    status: 'active'
-                };
-                localUsers.push(localUser);
-                localStorage.setItem(CONFIG.STORAGE_KEYS.USERS, JSON.stringify(localUsers));
-                this._saveSession(localUser);
-                console.log('[Auth] Signup successful via local fallback');
-                return { user: localUser, mode: 'local' };
-            } catch (localErr) {
-                if (localErr.message === 'User already exists') throw localErr;
-                console.error('[Auth] Local signup also failed:', localErr);
-                throw new Error('Signup failed');
+
+                if (data?.user) {
+                    // Upsert user profile with additional data (create if not exists)
+                    await supabaseClient
+                        .from('users')
+                        .upsert({
+                            id: data.user.id,
+                            email: data.user.email,
+                            name: userData.name,
+                            phone: userData.phone,
+                            role: userData.role || 'customer',
+                            activity: userData.activity,
+                            location: userData.location,
+                            wilaya: userData.wilaya,
+                            status: 'pending',
+                            balance: 0,
+                            credit_limit: 0,
+                            outstanding: 0
+                        }, { onConflict: 'id' });
+
+                    const user = DataHelper.normalizeUser({
+                        id: data.user.id,
+                        email: data.user.email,
+                        name: userData.name,
+                        role: userData.role || 'customer',
+                        status: 'pending'
+                    });
+
+                    this._saveSession(user);
+                    console.log('[Auth] Signup successful via Supabase Auth');
+                    return { user, mode: 'online' };
+                }
+            } catch (err) {
+                if (err.message === 'User already exists') throw err;
+                console.warn('[Auth] Supabase signup failed, falling back:', err.message);
             }
+
+            return this._localSignup(userData);
+        },
+
+        _localLogin(identifier, password) {
+            console.warn('[Auth] Using local login');
+            const localUsers = DataHelper.safeParse(CONFIG.STORAGE_KEYS.USERS, []);
+            const user = localUsers.find(u => 
+                (u.email === identifier || u.phone === identifier) && 
+                (u.password === password || u.passwordHash === password)
+            );
+            
+            if (user) {
+                this._saveSession(user);
+                return user;
+            }
+            return null;
+        },
+
+        _localSignup(userData) {
+            console.warn('[Auth] Using local signup');
+            const localUsers = DataHelper.safeParse(CONFIG.STORAGE_KEYS.USERS, []);
+            if (localUsers.some(u => u.email === userData.email)) {
+                throw new Error('User already exists');
+            }
+            const localUser = {
+                ...userData,
+                id: userData.id || ('local-' + Date.now()),
+                created_at: new Date().toISOString(),
+                status: 'active'
+            };
+            localUsers.push(localUser);
+            localStorage.setItem(CONFIG.STORAGE_KEYS.USERS, JSON.stringify(localUsers));
+            this._saveSession(localUser);
+            return { user: localUser, mode: 'local' };
         },
 
         logout() {
             localStorage.removeItem(CONFIG.STORAGE_KEYS.SESSION);
-            // Optional: Supabase sign out if using Auth
-            if (supabaseClient && supabaseClient.auth) {
+            if (supabaseClient?.auth) {
                 supabaseClient.auth.signOut().catch(console.error);
             }
             this.notify();

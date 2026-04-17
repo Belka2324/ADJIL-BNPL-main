@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { getSession } from '../lib/storage'
 import { supabase, hasSupabase } from '../lib/supabase'
 import { UserRecord } from '../lib/types'
-import { createStaff } from '../lib/data'
+import { createStaff, syncFromAdjilBNPL, getLastSyncTime } from '../lib/data'
 
 export default function Settings() {
   const [activeTab, setActiveTab] = useState<'general' | 'team' | 'create' | 'account'>('account')
@@ -29,9 +29,33 @@ export default function Settings() {
   const [registrationRows, setRegistrationRows] = useState<Array<{ id: string; email: string; role: string; source: string; status: string; createdAt?: string; verified: boolean }>>([])
   const [loadingAudit, setLoadingAudit] = useState(false)
 
+  // Sync state
+  const [syncing, setSyncing] = useState(false)
+  const [syncResult, setSyncResult] = useState<{ users: number; transactions: number } | null>(null)
+  const [lastSync, setLastSync] = useState<string | null>(null)
+
   // CEO role check - get from session
   const session = getSession()
   const isCEO = session?.role === 'administrator' || session?.isCEO === true || session?.role === 'ceo'
+
+  useEffect(() => {
+    setLastSync(getLastSyncTime())
+  }, [])
+
+  const handleSync = async () => {
+    setSyncing(true)
+    setSyncResult(null)
+    try {
+      const result = await syncFromAdjilBNPL()
+      setSyncResult(result)
+      setLastSync(new Date().toISOString())
+    } catch (error) {
+      console.error('Sync failed:', error)
+      alert('فشلت المزامنة')
+    } finally {
+      setSyncing(false)
+    }
+  }
 
   useEffect(() => {
     const fetchTeamData = async () => {
@@ -381,6 +405,39 @@ export default function Settings() {
               <div className="font-semibold text-emerald-600">نشط</div>
             </div>
           </div>
+          
+          {/* Sync Section */}
+          <div className="pt-4 border-t border-slate-100 space-y-3">
+            <div className="font-bold">مزامنة البيانات من AdjilBNPL</div>
+            <div className="text-xs text-slate-500">جلب التجار والزبائن والمعاملات من منصة AdjilBNPL إلى قاعدة البيانات.</div>
+            <div className="flex flex-wrap items-center gap-4">
+              <button 
+                onClick={handleSync}
+                disabled={syncing}
+                className="bg-primary hover:bg-secondary text-white px-4 py-2 rounded-xl text-sm font-bold disabled:opacity-50 transition-all shadow-lg shadow-primary/20 flex items-center gap-2"
+              >
+                <i className={`fa-solid fa-sync ${syncing ? 'fa-spin' : ''}`}></i>
+                {syncing ? 'جاري المزامنة...' : 'مزامنة الآن'}
+              </button>
+              {lastSync && (
+                <span className="text-xs text-slate-500">
+                  آخر مزامنة: {new Date(lastSync).toLocaleString('ar-DZ')}
+                </span>
+              )}
+            </div>
+            {syncResult && (
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-center gap-4">
+                <div className="text-emerald-600 font-semibold">
+                  <i className="fa-solid fa-check-circle ml-1"></i>
+                  تم المزامنة بنجاح
+                </div>
+                <div className="text-sm text-emerald-700">
+                  {syncResult.users} مستخدم، {syncResult.transactions} معاملة
+                </div>
+              </div>
+            )}
+          </div>
+          
           <div className="pt-4 border-t border-slate-100 space-y-3">
             <div className="font-bold">التحقق من التسجيل الحقيقي للحسابات</div>
             <div className="text-xs text-slate-500">هذه القائمة تعرض حسابات ADJIL-BNPL و ADMIN-PORTAL مع حالة اكتمال التسجيل.</div>

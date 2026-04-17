@@ -10,12 +10,20 @@ const schema = z.object({
   password: z.string().min(1, 'كلمة المرور مطلوبة')
 })
 
-// Local admin accounts that work without Supabase
+// Local admin accounts that work without Supabase (fallback only)
 const LOCAL_ADMINS: Array<{ username: string; password: string; role: Role; isCEO: boolean }> = [
   { username: 'admin', password: 'adminceo', role: 'ceo', isCEO: true },
   { username: 'admin', password: 'admin', role: 'administrator', isCEO: false },
   { username: 'support', password: 'support', role: 'support', isCEO: false },
   { username: 'partner', password: 'partner', role: 'partner', isCEO: false }
+]
+
+// Seed admin accounts for Supabase Auth
+const SEED_ADMINS = [
+  { email: 'ceo@adjil.dz', role: 'ceo' },
+  { email: 'admin@adjil.dz', role: 'administrator' },
+  { email: 'support@adjil.dz', role: 'support' },
+  { email: 'partner@adjil.dz', role: 'partner' }
 ]
 
 export default function Login() {
@@ -88,17 +96,20 @@ export default function Login() {
       try {
         let email = data.identifier;
         
+        // If not email, try to find user by username
         if (!email.includes('@')) {
-          const { data: fetchedEmail, error: userError } = await supabase
-            .rpc('get_user_email_by_username', { p_username: data.identifier });
+          const { data: userData } = await supabase
+            .from('users')
+            .select('email')
+            .eq('username', data.identifier)
+            .single();
           
-          if (userError || !fetchedEmail) {
-            // If username lookup fails, check if it's a direct email attempt
+          if (!userData) {
             setError('اسم المستخدم غير موجود أو كلمة المرور غير صحيحة')
             setIsLoading(false)
             return
           }
-          email = fetchedEmail;
+          email = userData.email;
         }
 
         const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
@@ -112,19 +123,28 @@ export default function Login() {
           return
         }
         
-        const { data: userData, error: fetchError } = await supabase
+        // Get user profile from public.users (includes role)
+        const { data: userProfile, error: profileError } = await supabase
           .from('users')
           .select('role, username, name')
           .eq('id', authData.user.id)
           .single()
         
-        if (fetchError || !userData) {
-          setError('تعذر العثور على بيانات المستخدم. يرجى المحاولة مرة أخرى.')
-          setIsLoading(false)
-          return
+        // Also check staff table for admin roles
+        let role = userProfile?.role;
+        if (!role) {
+          const { data: staffProfile } = await supabase
+            .from('staff')
+            .select('role')
+            .eq('auth_id', authData.user.id)
+            .single();
+          role = staffProfile?.role;
         }
-
-        const role = userData.role as Role
+        
+        if (!role) {
+          role = 'support'; // Default role for new users
+        }
+        
         const isStaff = ['ceo', 'administrator', 'admin', 'support', 'partner'].includes(role)
         
         if (!isStaff) {
@@ -137,7 +157,7 @@ export default function Login() {
         const isCEO = ['ceo', 'administrator', 'admin'].includes(role)
         
         saveSession({ 
-          username: userData.username || userData.name || authData.user.email?.split('@')[0] || 'user', 
+          username: userProfile?.username || userProfile?.name || authData.user.email?.split('@')[0] || 'user', 
           role, 
           remember, 
           isCEO 

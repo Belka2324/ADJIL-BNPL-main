@@ -138,7 +138,35 @@ DROP POLICY IF EXISTS "Allow public read access on tickets" ON public.support_ti
 CREATE POLICY "Allow public read access on tickets" ON public.support_tickets FOR SELECT USING (true);
 
 -- ==========================================
--- 5. Functions & Procedures
+-- 5. Subscription Requests Table
+-- ==========================================
+CREATE TABLE IF NOT EXISTS public.subscription_requests (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    user_id UUID REFERENCES public.users(id),
+    user_name TEXT,
+    user_email TEXT,
+    user_phone TEXT,
+    plan TEXT NOT NULL CHECK (plan IN ('monthly', '6months', 'annual')),
+    credit_limit DECIMAL(12, 2) NOT NULL,
+    status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+    admin_notes TEXT,
+    reviewed_at TIMESTAMP WITH TIME ZONE
+);
+
+ALTER TABLE public.subscription_requests ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow public read access on subscription_requests" ON public.subscription_requests;
+CREATE POLICY "Allow public read access on subscription_requests" ON public.subscription_requests FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Allow public insert access on subscription_requests" ON public.subscription_requests;
+CREATE POLICY "Allow public insert access on subscription_requests" ON public.subscription_requests FOR INSERT WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow public update access on subscription_requests" ON public.subscription_requests;
+CREATE POLICY "Allow public update access on subscription_requests" ON public.subscription_requests FOR UPDATE USING (true);
+
+-- ==========================================
+-- 6. Functions & Procedures
 -- ==========================================
 
 -- Drop existing function if exists (required before changing return type)

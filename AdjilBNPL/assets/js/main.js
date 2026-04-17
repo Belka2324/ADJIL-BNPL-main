@@ -204,6 +204,45 @@ if (!window.AuthService) {
             users.push(user);
             localStorage.setItem('adjil_users', JSON.stringify(users));
             localStorage.setItem('adjil_session', JSON.stringify(user));
+
+            // Sync to Supabase
+            if (window.supabaseClient) {
+                try {
+                    const { error } = await window.supabaseClient.from('users').upsert({
+                        id: user.id,
+                        name: user.name,
+                        email: user.email,
+                        phone: user.phone,
+                        role: user.role,
+                        status: user.status || 'pending',
+                        wilaya: user.wilaya,
+                        city: user.city,
+                        activity: user.activity,
+                        balance: user.balance || 0,
+                        credit_limit: user.credit_limit || 0,
+                        outstanding: user.outstanding || 0,
+                        subscription_plan: user.subscription_plan,
+                        location: user.location,
+                        coords: user.coords,
+                        pin: user.pin,
+                        card_number: user.card_number,
+                        doc_id_front: user.doc_id_front,
+                        doc_id_back: user.doc_id_back,
+                        doc_payslip: user.doc_payslip,
+                        doc_rib: user.doc_rib,
+                        doc_commercial_register: user.doc_commercial_register,
+                        created_at: user.created_at
+                    }, { onConflict: 'id' });
+                    if (error) {
+                        console.warn('[Auth] Supabase sync error:', error.message);
+                    } else {
+                        console.log('[Auth] User synced to Supabase:', user.email);
+                    }
+                } catch (syncErr) {
+                    console.warn('[Auth] Supabase sync failed:', syncErr);
+                }
+            }
+
             console.log('[Auth] Signup successful via local');
             return { user, mode: 'local' };
         },
@@ -494,6 +533,8 @@ const app = {
             contact: "تواصل معنا",
             dashboard_customer: "لوحة تحكم الزبون",
             dashboard_merchant: "لوحة تحكم التاجر",
+            merchant_pending_warning_title: "لا تقم بأية عملية بيع آجل حالياً",
+            merchant_pending_warning_desc: "إلى غاية التأكد من طرف الفريق التقني",
             welcome: "مرحباً بك مجدداً،",
             available_balance: "الرصيد المتاح للاستخدام",
             total_sales: "المبيعات الإجمالية",
@@ -779,6 +820,8 @@ const app = {
             contact: "Contactez-nous",
             dashboard_customer: "Tableau de bord Client",
             dashboard_merchant: "Tableau de bord Marchand",
+            merchant_pending_warning_title: "N'effectuez aucune vente à crédit actuellement",
+            merchant_pending_warning_desc: "Jusqu'à confirmation de la part de l'équipe technique",
             welcome: "Bienvenue,",
             available_balance: "Solde disponible",
             total_sales: "Ventes totales",
@@ -1092,6 +1135,8 @@ const app = {
             contact: "Contact us",
             dashboard_customer: "Customer Dashboard",
             dashboard_merchant: "Merchant Dashboard",
+            merchant_pending_warning_title: "Do not proceed with any credit sales currently",
+            merchant_pending_warning_desc: "Wait for confirmation from the technical team",
             welcome: "Welcome back,",
             available_balance: "Available Balance",
             total_sales: "Total Sales",
@@ -1597,6 +1642,25 @@ const app = {
 
         // Initialize theme
         app.initTheme();
+
+        // Restore user session from localStorage
+        const savedSession = localStorage.getItem('adjil_session');
+        if (savedSession) {
+            try {
+                app.user = JSON.parse(savedSession);
+                console.log('[Init] Session restored:', app.user?.email || app.user?.phone);
+                
+                // Auto-redirect to dashboard if already logged in and on auth/home page
+                const currentHash = window.location.hash.slice(1);
+                if (app.user && (currentHash === '' || currentHash === '/' || currentHash === '#/auth')) {
+                    const dashboardPath = app.user.role === 'merchant' ? '#/dashboard' : '#/dashboard';
+                    window.location.hash = dashboardPath;
+                }
+            } catch (e) {
+                console.error('[Init] Failed to parse session:', e);
+                localStorage.removeItem('adjil_session');
+            }
+        }
 
         // Register Service Worker for PWA
         if ('serviceWorker' in navigator) {
@@ -2212,6 +2276,20 @@ const app = {
             }
         }
         if (merchPinEl) merchPinEl.textContent = app.user.pin ? String(app.user.pin).padStart(4, '0') : '';
+
+        // Show/hide pending approval warning for merchants
+        if (app.user.role === 'merchant') {
+            const warnEl = document.getElementById('merch-pending-warning') || document.querySelector('#merch-pending-warning');
+            const merchStatus = app.user.status;
+            const isApproved = merchStatus === 'active' || merchStatus === 'approved';
+            if (warnEl) {
+                if (isApproved) {
+                    warnEl.classList.add('hidden');
+                } else {
+                    warnEl.classList.remove('hidden');
+                }
+            }
+        }
 
         // If Customer and No Plan, show CTA
         if (app.user.role === 'customer' && !app.user.subscription_plan) {
@@ -3433,10 +3511,33 @@ const app = {
 
         // 2. Fallback: Store as base64 in localStorage
         try {
+            // Validate file type before reading
+            const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+            if (!validTypes.includes(file.type)) {
+                console.warn('[KYC] Invalid file type:', file.type);
+                alert(app.lang === 'ar' 
+                    ? 'يرجى اختيار صورة بصيغة صالحة (JPG, PNG, GIF, WebP)' 
+                    : 'Please select a valid image format (JPG, PNG, GIF, WebP)');
+                return null;
+            }
+            
+            // Validate file size (max 5MB)
+            const maxSize = 5 * 1024 * 1024; // 5MB
+            if (file.size > maxSize) {
+                console.warn('[KYC] File too large:', file.size);
+                alert(app.lang === 'ar' 
+                    ? 'حجم الصورة يجب أن يكون أقل من 5 ميجابايت' 
+                    : 'Image size must be less than 5MB');
+                return null;
+            }
+            
             const base64 = await new Promise((resolve, reject) => {
                 const reader = new FileReader();
                 reader.onload = () => resolve(reader.result);
-                reader.onerror = reject;
+                reader.onerror = (err) => {
+                    console.error('[KYC] FileReader error:', err);
+                    reject(new Error('Cannot read image file. Please try a different image.'));
+                };
                 reader.readAsDataURL(file);
             });
 
@@ -3566,6 +3667,17 @@ const app = {
                 currentUsers.push(app.user);
             }
             DB.set('users', currentUsers);
+            
+            // Also save to adjil_users for backward compatibility
+            const adjilUsers = JSON.parse(localStorage.getItem('adjil_users') || '[]');
+            const adjilIdx = adjilUsers.findIndex(u => u.id === app.user.id);
+            if (adjilIdx >= 0) {
+                adjilUsers[adjilIdx] = app.user;
+            } else {
+                adjilUsers.push(app.user);
+            }
+            localStorage.setItem('adjil_users', JSON.stringify(adjilUsers));
+            console.log('[Register] User added to localStorage, total users:', adjilUsers.length);
 
             // Handle file uploads now that we have a user ID
             for (const item of uploads) {
@@ -3809,6 +3921,20 @@ const app = {
             statTx.textContent = txCount;
         }
 
+        // Check if sync button exists, if not add it
+        const syncBtn = document.getElementById('admin-sync-btn');
+        if (!syncBtn) {
+            const syncBtnContainer = document.getElementById('admin-stats');
+            if (syncBtnContainer) {
+                const btn = document.createElement('button');
+                btn.id = 'admin-sync-btn';
+                btn.className = 'bg-blue-600 hover:bg-blue-500 text-white px-3 py-2 rounded-lg text-sm font-bold';
+                btn.innerHTML = '<i class="fa-solid fa-cloud-upload-alt ml-1"></i> مزامنة';
+                btn.onclick = app.handleAdminSyncAll;
+                syncBtnContainer.appendChild(btn);
+            }
+        }
+
         const renderTable = (filter = '') => {
             if (!tbody) return;
             const q = (filter || '').toLowerCase();
@@ -3893,10 +4019,32 @@ const app = {
         // Sync to Supabase
         if (window.supabaseClient) {
             try {
-                await window.supabaseClient.from('users').insert([newUser]);
+                console.log('[Admin] Syncing user to Supabase:', newUser.email);
+                const { data, error } = await window.supabaseClient.from('users').upsert({
+                    id: newUser.id,
+                    name: newUser.name,
+                    email: newUser.email,
+                    phone: newUser.phone,
+                    role: newUser.role,
+                    status: newUser.status,
+                    balance: newUser.balance,
+                    outstanding: newUser.outstanding,
+                    credit_limit: newUser.credit_limit,
+                    subscription_plan: newUser.subscription_plan,
+                    pin: newUser.pin,
+                    card_number: newUser.card_number,
+                    created_at: newUser.created_at
+                }, { onConflict: 'id' });
+                if (error) {
+                    console.error('[Admin] Supabase upsert error:', error.message);
+                } else {
+                    console.log('[Admin] User synced to Supabase successfully');
+                }
             } catch (err) {
-                console.error('Supabase sync failed:', err);
+                console.error('[Admin] Supabase sync failed:', err);
             }
+        } else {
+            console.warn('[Admin] No supabaseClient - user saved locally only');
         }
 
         // Clear fields
@@ -3908,6 +4056,73 @@ const app = {
         app.closeAdminCreateModal();
         app.renderAdminDashboard();
         alert('تم إنشاء الحساب بنجاح: ' + name);
+    },
+
+    handleAdminSyncAll: async () => {
+        const users = DB.get('users') || [];
+        console.log('[Admin] Users in localStorage:', users.length);
+        if (users.length === 0) {
+            alert('لا يوجد مستخدمون للمزامنة. يرجى إنشاء مستخدمين أولاً.');
+            return;
+        }
+
+        if (!window.supabaseClient) {
+            alert('Supabase غير متصل. تحقق من الاتصال.');
+            return;
+        }
+
+        const confirmMsg = `سيتم مزامنة ${users.length} مستخدم إلى Supabase. هل تريد المتابعة؟`;
+        if (!confirm(confirmMsg)) return;
+
+        const btn = document.getElementById('admin-sync-btn');
+        if (btn) btn.disabled = true;
+        
+        let synced = 0;
+        let errors = 0;
+        
+        for (const user of users) {
+            try {
+                const { error } = await window.supabaseClient.from('users').upsert({
+                    id: user.id,
+                    name: user.name,
+                    email: user.email,
+                    phone: user.phone,
+                    role: user.role,
+                    status: user.status || 'active',
+                    wilaya: user.wilaya,
+                    city: user.city,
+                    activity: user.activity,
+                    balance: user.balance || 0,
+                    outstanding: user.outstanding || 0,
+                    credit_limit: user.credit_limit || 0,
+                    subscription_plan: user.subscription_plan,
+                    location: user.location,
+                    coords: user.coords,
+                    pin: user.pin,
+                    card_number: user.card_number,
+                    doc_id_front: user.doc_id_front,
+                    doc_id_back: user.doc_id_back,
+                    doc_payslip: user.doc_payslip,
+                    doc_rib: user.doc_rib,
+                    doc_commercial_register: user.doc_commercial_register,
+                    doc_contract: user.doc_contract,
+                    last_synced_at: new Date().toISOString()
+                }, { onConflict: 'id' });
+
+                if (error) {
+                    console.error('[Admin] Sync error:', error.message, user.email);
+                    errors++;
+                } else {
+                    synced++;
+                }
+            } catch (err) {
+                console.error('[Admin] Sync exception:', err, user.email);
+                errors++;
+            }
+        }
+
+        if (btn) btn.disabled = false;
+        alert(`تم المزامنة: ${synced} مستخدم، ${errors} خطأ`);
     },
 
     showAdminEditModal: (userId) => {
@@ -4735,10 +4950,33 @@ const app = {
         const file = event.target.files[0];
         if (!file) return;
 
+        // Validate file type
+        const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+        if (!validTypes.includes(file.type)) {
+            alert(app.lang === 'ar' 
+                ? 'يرجى اختيار صورة بصيغة صالحة (JPG, PNG, GIF, WebP)' 
+                : 'Please select a valid image format (JPG, PNG, GIF, WebP)');
+            return;
+        }
+        
+        // Validate file size (max 5MB)
+        const maxSize = 5 * 1024 * 1024;
+        if (file.size > maxSize) {
+            alert(app.lang === 'ar' 
+                ? 'حجم الصورة يجب أن يكون أقل من 5 ميجابايت' 
+                : 'Image size must be less than 5MB');
+            return;
+        }
+
         // Preview locally
         const reader = new FileReader();
         reader.onload = (e) => {
             document.getElementById('profile-picture-preview').src = e.target.result;
+        };
+        reader.onerror = () => {
+            alert(app.lang === 'ar' 
+                ? 'خطأ في قراءة الملف' 
+                : 'Error reading file');
         };
         reader.readAsDataURL(file);
 
@@ -5625,6 +5863,9 @@ window.addEventListener('adjil:users:updated', () => {
                 if (data) {
                     app.user = { ...app.user, ...data };
                     localStorage.setItem('adjil_session', JSON.stringify(app.user));
+                    if (window.location.hash === '#/dashboard') {
+                        app.updateDashboardUI();
+                    }
                 }
             });
     }

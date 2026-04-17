@@ -1,11 +1,138 @@
 import { AccountState, CustomerRecord, Institution, MerchantRecord, StaffRecord, TicketRecord, TransactionRecord, UserRecord, SubscriptionRequestRecord } from './types'
-import { supabase, hasSupabase } from './supabase'
+import { createClient } from '@supabase/supabase-js'
+
+// Hardcoded fallback for Supabase credentials
+const FALLBACK_URL = 'https://znlieqvasitebeyinrxi.supabase.co'
+const FALLBACK_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpubGllcXZhc2l0ZWJleWlucnhpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2MDUyMjYsImV4cCI6MjA5MDE4MTIyNn0.AgUEfbPzHRRfi49n2L3c-oY9jOgRkvYGf-qqw6XejB4'
+
+// Use imported or fallback
+import { supabase as importedSupabase, hasSupabase as importedHasSupabase } from './supabase'
+
+// Export combined values
+export const supabase = importedSupabase || createClient(FALLBACK_URL, FALLBACK_KEY)
+export const hasSupabase = importedHasSupabase || true
 
 const CACHE_KEYS = {
   users: 'adjil_users_cache',
   staff: 'adjil_staff_cache',
   transactions: 'adjil_transactions_cache',
-  tickets: 'adjil_tickets_cache'
+  tickets: 'adjil_tickets_cache',
+  lastSync: 'adjil_last_sync'
+}
+
+export const getLastSyncTime = (): string | null => {
+  return localStorage.getItem(CACHE_KEYS.lastSync)
+}
+
+export const setLastSyncTime = (time: string) => {
+  localStorage.setItem(CACHE_KEYS.lastSync, time)
+}
+
+export const syncFromAdjilBNPL = async (): Promise<{ users: number; transactions: number }> => {
+  let usersCount = 0
+  let transactionsCount = 0
+  
+  if (!hasSupabase || !supabase) {
+    console.warn('Supabase not configured, cannot sync')
+    return { users: 0, transactions: 0 }
+  }
+
+  console.log('[syncFromAdjilBNPL] Starting sync...')
+  
+  // Sync Users from AdjilBNPL localStorage
+  try {
+    const adjilUsers = JSON.parse(localStorage.getItem('adjil_users') || '[]')
+    console.log('[syncFromAdjilBNPL] Found', adjilUsers.length, 'users in localStorage')
+    
+    for (const user of adjilUsers) {
+      const userData = {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        status: user.status || 'active',
+        wilaya: user.wilaya,
+        city: user.city,
+        activity: user.activity,
+        balance: user.balance || 0,
+        outstanding: user.outstanding || 0,
+        credit_limit: user.credit_limit || 0,
+        subscription_plan: user.subscription_plan,
+        location: user.location,
+        coords: user.coords || user.coordinates,
+        pin: user.pin,
+        card_number: user.card_number,
+        doc_id_front: user.doc_id_front,
+        doc_id_back: user.doc_id_back,
+        doc_payslip: user.doc_payslip,
+        doc_rib: user.doc_rib,
+        doc_commercial_register: user.doc_commercial_register,
+        doc_contract: user.doc_contract,
+        document_urls: user.document_urls || [],
+        last_synced_at: new Date().toISOString()
+      }
+
+      const { error } = await supabase
+        .from('users')
+        .upsert(userData, { onConflict: 'id' })
+
+      if (error) {
+        console.warn('[syncFromAdjilBNPL] User sync error:', error.message, 'for', user.email)
+      } else {
+        usersCount++
+      }
+    }
+    console.log('[syncFromAdjilBNPL] Synced', usersCount, 'users')
+  } catch (e) {
+    console.warn('Error syncing users:', e)
+  }
+
+  // Sync Transactions from AdjilBNPL users' txs arrays
+  try {
+    const adjilUsers = JSON.parse(localStorage.getItem('adjil_users') || '[]')
+    for (const user of adjilUsers) {
+      if (user.txs && Array.isArray(user.txs)) {
+        for (const tx of user.txs) {
+          const txData = {
+            id: tx.id,
+            customer_id: user.id,
+            merchant_id: tx.merchantId || (user.role === 'merchant' ? user.id : null),
+            amount: tx.amount,
+            method: tx.method || 'BNPL',
+            status: tx.status || 'completed',
+            paid: tx.paid || false,
+            paid_at: tx.paid_at || tx.paidAt,
+            created_at: tx.date || tx.created_at || new Date().toISOString(),
+            merchant_name: tx.merchant,
+            customer_name: tx.customerName || tx.customerCard,
+            customer_card: tx.customerCard,
+            invoice_number: tx.invoiceNumber,
+            store_number: tx.storeNumber || tx.merchantPin,
+            payment_channel: tx.paymentChannel,
+            cash_collected: tx.cashCollected,
+            cash_collected_at: tx.cashCollectedAt,
+            cash_collection_status: tx.cashCollectionStatus
+          }
+
+          const { error } = await supabase
+            .from('transactions')
+            .upsert(txData, { onConflict: 'id' })
+
+          if (!error) transactionsCount++
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('Error syncing transactions:', e)
+  }
+
+  // Update last sync time
+  setLastSyncTime(new Date().toISOString())
+  clearCache()
+
+  console.log(`Sync complete: ${usersCount} users, ${transactionsCount} transactions`)
+  return { users: usersCount, transactions: transactionsCount }
 }
 
 const CACHE_DURATION = 5 * 60 * 1000
@@ -97,10 +224,11 @@ export const getInstitutionByCode = (code: string): Institution | undefined => {
 // ============================================
 
 export const fetchUsers = async (): Promise<UserRecord[]> => {
-  const cached = getCached<UserRecord[]>(CACHE_KEYS.users)
-  if (cached) return cached
+  // Bypass cache to get fresh data from Supabase
+  // const cached = getCached<UserRecord[]>(CACHE_KEYS.users)
+  // if (cached) return cached
 
-  // Get local users from AdjilBNPL localStorage
+  // Get local users from AdjilBNPL localStorage (same origin)
   let localUsers: UserRecord[] = []
   try {
     const adjilUsers = JSON.parse(localStorage.getItem('adjil_users') || '[]')
@@ -118,61 +246,117 @@ export const fetchUsers = async (): Promise<UserRecord[]> => {
       balance: u.balance || 0,
       outstanding: u.outstanding || 0,
       credit_limit: u.credit_limit || 0,
-      created_at: u.created_at
+      created_at: u.created_at,
+      subscription_plan: u.subscription_plan,
+      pin: u.pin,
+      card_number: u.card_number,
+      location: u.location,
+      coords: u.coords,
+      doc_id_front: u.doc_id_front,
+      doc_id_back: u.doc_id_back,
+      doc_payslip: u.doc_payslip,
+      doc_rib: u.doc_rib,
+      doc_commercial_register: u.doc_commercial_register,
+      doc_contract: u.doc_contract,
+      document_urls: u.document_urls || []
     }))
   } catch (e) {
     console.warn('Could not parse local users:', e)
   }
 
-  if (hasSupabase && supabase) {
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .order('created_at', { ascending: false })
-
-    if (error) throw error
-
-    const mapped: UserRecord[] = (data || []).map((p: any) => {
-      const docs = Array.isArray(p.document_urls) ? p.document_urls : []
-      
-      return {
-        id: p.id,
-        name: p.name || p.full_name || p.business_name,
-        email: p.email,
-        phone_number: p.phone,
-        role: p.role,
-        status: p.status,
-        state: p.status as AccountState,
-        wilaya: p.wilaya,
-        city: p.city,
-        activity: p.activity || p.business_type,
-        balance: p.balance || 0,
-        outstanding: p.outstanding || 0,
-        credit_limit: p.credit_limit || 0,
-        risk_score: p.risk_score,
-        created_at: p.created_at,
-        frozen_at: p.frozen_at,
-        blacklist_due_at: p.blacklist_due_at,
-        document_urls: docs,
-        doc_id_front: p.doc_id_front || docs.find((d: any) => (d.type === 'id_front' || d.label?.includes('front')))?.url || (typeof docs[0] === 'string' ? docs[0] : undefined),
-        doc_id_back: p.doc_id_back || docs.find((d: any) => (d.type === 'id_back' || d.label?.includes('back')))?.url || (typeof docs[1] === 'string' ? docs[1] : undefined),
-        doc_commercial_register: p.doc_commercial_register || docs.find((d: any) => (d.type === 'commercial_register' || d.label?.includes('register')))?.url || (typeof docs[2] === 'string' ? docs[2] : undefined),
+  // Also try to fetch from AdjilBNPL if on same domain
+  try {
+    const adjilFrame = document.getElementById('adjil-frame')
+    if (adjilFrame && typeof adjilFrame.getAttribute === 'function') {
+      // Try to get data from iframe
+      const adjilData = localStorage.getItem('adjil_users')
+      if (adjilData) {
+        const parsed = JSON.parse(adjilData)
+        parsed.forEach((u: any) => {
+          if (!localUsers.find(lu => lu.id === u.id)) {
+            localUsers.push({
+              id: u.id,
+              name: u.name,
+              email: u.email,
+              phone_number: u.phone,
+              role: u.role,
+              status: u.status || 'active',
+              state: u.status || 'active',
+              wilaya: u.wilaya,
+              city: u.city,
+              activity: u.activity,
+              balance: u.balance || 0,
+              outstanding: u.outstanding || 0,
+              credit_limit: u.credit_limit || 0,
+              created_at: u.created_at,
+              subscription_plan: u.subscription_plan
+            })
+          }
+        })
       }
-    })
-
-    // Combine local and remote users, removing duplicates by id
-    const allUsers = [...localUsers]
-    mapped.forEach(m => {
-      if (!allUsers.find(u => u.id === m.id)) {
-        allUsers.push(m)
-      }
-    })
-
-    setCache(CACHE_KEYS.users, allUsers)
-    return allUsers
+    }
+  } catch (e) {
+    console.warn('Could not fetch from AdjilBNPL:', e)
   }
 
-  // If no Supabase, return local users only
+  if (hasSupabase && supabase) {
+    console.log('[fetchUsers] hasSupabase is:', hasSupabase)
+    console.log('[fetchUsers] Fetching from Supabase...')
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      console.log('[fetchUsers] Supabase response:', { error: error?.message, count: data?.length })
+      if (error) console.warn('Supabase fetch error:', error.message)
+
+      if (data && data.length > 0) {
+        console.log('[fetchUsers] Found', data.length, 'users in Supabase')
+        const mapped: UserRecord[] = (data || []).map((p: any) => {
+          const docs = Array.isArray(p.document_urls) ? p.document_urls : []
+          
+          return {
+            id: p.id,
+            name: p.name || p.full_name || p.business_name,
+            email: p.email,
+            phone_number: p.phone,
+            role: p.role,
+            status: p.status,
+            state: p.status as AccountState,
+            wilaya: p.wilaya,
+            city: p.city,
+            activity: p.activity || p.business_type,
+            balance: p.balance || 0,
+            outstanding: p.outstanding || 0,
+            credit_limit: p.credit_limit || 0,
+            risk_score: p.risk_score,
+            created_at: p.created_at,
+            frozen_at: p.frozen_at,
+            blacklist_due_at: p.blacklist_due_at,
+            document_urls: docs,
+            doc_id_front: p.doc_id_front,
+            doc_id_back: p.doc_id_back,
+            doc_payslip: p.doc_payslip,
+            doc_rib: p.doc_rib,
+            doc_commercial_register: p.doc_commercial_register,
+            subscription_plan: p.subscription_plan
+          }
+        })
+
+        mapped.forEach(m => {
+          if (!localUsers.find(u => u.id === m.id)) {
+            localUsers.push(m)
+          }
+        })
+      } else {
+        console.log('[fetchUsers] Empty response - table may be empty')
+      }
+    } catch (err) {
+      console.error('[fetchUsers] Error:', err)
+    }
+  }
+
   setCache(CACHE_KEYS.users, localUsers)
   return localUsers
 }
@@ -231,38 +415,48 @@ export const fetchMerchants = async (): Promise<MerchantRecord[]> => {
 }
 
 export const setCustomerState = async (id: string, state: AccountState): Promise<void> => {
-  if (hasSupabase && supabase) {
+  console.log('[setCustomerState] Updating user:', id, 'to state:', state)
+  if (!hasSupabase || !supabase) {
+    console.warn('[setCustomerState] No Supabase connection')
+    return
+  }
+  try {
     const now = new Date().toISOString()
-    const updates: any = { status: state }
-    if (state === 'frozen') {
-      updates.frozen_at = now
-      updates.blacklist_due_at = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString()
-    }
-    if (state === 'active') {
-      updates.frozen_at = null
-      updates.blacklist_due_at = null
-    }
+    const updates: any = { status: state, updated_at: now }
+    console.log('[setCustomerState] Sending update:', updates)
     const { error } = await supabase.from('users').update(updates).eq('id', id)
-    if (error) throw error
+    if (error) {
+      console.error('[setCustomerState] Error:', error.message)
+      throw error
+    }
+    console.log('[setCustomerState] Success!')
     clearCache()
+  } catch (err) {
+    console.error('[setCustomerState] Exception:', err)
+    throw err
   }
 }
 
 export const setMerchantState = async (id: string, state: AccountState): Promise<void> => {
-  if (hasSupabase && supabase) {
+  console.log('[setMerchantState] Updating user:', id, 'to state:', state)
+  if (!hasSupabase || !supabase) {
+    console.warn('[setMerchantState] No Supabase connection')
+    return
+  }
+  try {
     const now = new Date().toISOString()
-    const updates: any = { status: state }
-    if (state === 'frozen') {
-      updates.frozen_at = now
-      updates.blacklist_due_at = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString()
-    }
-    if (state === 'active') {
-      updates.frozen_at = null
-      updates.blacklist_due_at = null
-    }
+    const updates: any = { status: state, updated_at: now }
+    console.log('[setMerchantState] Sending update:', updates)
     const { error } = await supabase.from('users').update(updates).eq('id', id)
-    if (error) throw error
+    if (error) {
+      console.error('[setMerchantState] Error:', error.message)
+      throw error
+    }
+    console.log('[setMerchantState] Success!')
     clearCache()
+  } catch (err) {
+    console.error('[setMerchantState] Exception:', err)
+    throw err
   }
 }
 
@@ -747,6 +941,34 @@ export const fetchTransactions = async (): Promise<TransactionRecord[]> => {
       setCache(CACHE_KEYS.transactions, allTx)
       return allTx
     }
+  }
+  
+  // جلب المعاملات من مصفوفة المستخدمين المحلية (AdjilBNPL)
+  try {
+    const adjilUsers = JSON.parse(localStorage.getItem('adjil_users') || '[]')
+    adjilUsers.forEach((u: any) => {
+      if (u.txs && Array.isArray(u.txs)) {
+        u.txs.forEach((tx: any) => {
+          // التحقق من عدم التكرار
+          if (!localTransactions.find(t => t.id === tx.id)) {
+            localTransactions.push({
+              id: tx.id,
+              customer_id: u.id,
+              merchant_id: u.role === 'merchant' ? u.id : undefined,
+              amount: tx.amount,
+              method: tx.method || 'BNPL',
+              status: tx.status || 'completed',
+              created_at: tx.date || tx.created_at,
+              merchant_name: tx.merchant,
+              customer_name: tx.customerName || tx.customerCard,
+              customer_card: tx.customerCard
+            })
+          }
+        })
+      }
+    })
+  } catch (e) {
+    console.warn('Could not extract transactions from users:', e)
   }
   
   setCache(CACHE_KEYS.transactions, localTransactions)

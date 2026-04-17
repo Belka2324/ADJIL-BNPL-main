@@ -1522,7 +1522,7 @@
             </div>
 
             <!-- Stats -->
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div id="admin-stats" class="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div class="glass-matte p-5 rounded-2xl border border-white/10">
                     <div class="text-xs text-slate-400">إجمالي المستخدمين</div>
                     <div id="admin-stat-users" class="text-3xl font-black text-white mt-1">0</div>
@@ -2011,6 +2011,17 @@
 
     <template id="tpl-dash-merchant">
         <div class="py-8 space-y-8 animate-fade-in">
+            <!-- Merchant Pending Approval Warning -->
+            <div id="merch-pending-warning" class="hidden bg-yellow-500/10 border border-yellow-500/30 rounded-2xl p-4">
+                <div class="flex items-center gap-3">
+                    <i class="fa-solid fa-triangle-exclamation text-yellow-400 text-xl"></i>
+                    <div>
+                        <p class="text-yellow-400 font-bold text-sm" data-t="merchant_pending_warning_title">لا تقم بأية عملية بيع آجل حالياً</p>
+                        <p class="text-yellow-400/70 text-xs mt-1" data-t="merchant_pending_warning_desc">إلى غاية التأكد من طرف الفريق التقني</p>
+                    </div>
+                </div>
+            </div>
+
             <div class="flex flex-col md:flex-row justify-between items-center gap-6 mb-8">
                 <div>
                     <h2 class="text-3xl font-bold text-white mb-2" data-t="dashboard_merchant">لوحة تحكم التاجر</h2>

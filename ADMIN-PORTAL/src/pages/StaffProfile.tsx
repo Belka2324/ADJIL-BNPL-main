@@ -1,6 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { StaffRecord, StaffReport, StaffCommunication, StaffRole } from '../lib/types'
+import { deleteStaff, fetchStaffById } from '../lib/data'
+import { getSession } from '../lib/storage'
 
 // Demo staff data
 const DEMO_STAFF: StaffRecord[] = [
@@ -161,10 +163,54 @@ export default function StaffProfile() {
   const { id } = useParams()
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<'info' | 'reports' | 'communications'>('info')
+  const [deleting, setDeleting] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [staffData, setStaffData] = useState<StaffRecord | null>(null)
+  const session = getSession()
+  const isCEO = session?.role === 'ceo' || session?.isCEO === true
   
-  const staff = DEMO_STAFF.find(s => s.id === id)
+  useEffect(() => {
+    const loadStaff = async () => {
+      if (!id) return
+      setLoading(true)
+      try {
+        const data = await fetchStaffById(id)
+        setStaffData(data)
+      } catch (error) {
+        console.error('Error loading staff:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadStaff()
+  }, [id])
+
+  const staff = staffData || DEMO_STAFF.find(s => s.id === id)
   const reports = DEMO_REPORTS.filter(r => r.staff_id === id)
   const communications = DEMO_COMMUNICATIONS.filter(c => c.staff_id === id)
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="spinner"></div>
+      </div>
+    )
+  }
+
+  const handleDelete = async () => {
+    if (!staff) return
+    if (!confirm('هل أنت متأكد من حذف هذا العضو نهائياً؟')) return
+    setDeleting(true)
+    try {
+      await deleteStaff(staff.id)
+      navigate('/team')
+    } catch (error) {
+      console.error('Delete failed:', error)
+      alert('فشل حذف العضو')
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   if (!staff) {
     return (
@@ -259,6 +305,16 @@ export default function StaffProfile() {
                   <i className="fa-solid fa-envelope ml-2"></i>
                   رسالة
                 </button>
+                {isCEO && staff.role !== 'ceo' && (
+                  <button 
+                    onClick={handleDelete}
+                    disabled={deleting}
+                    className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-xl font-bold text-sm disabled:opacity-50"
+                  >
+                    <i className="fa-solid fa-trash ml-2"></i>
+                    {deleting ? 'جاري...' : 'حذف'}
+                  </button>
+                )}
               </div>
             </div>
 

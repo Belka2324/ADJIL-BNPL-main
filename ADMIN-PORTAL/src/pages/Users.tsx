@@ -23,6 +23,28 @@ export default function Users({ isAdmin = false }: Props) {
   const [previewDocs, setPreviewDocs] = useState<UserRecord | null>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [creating, setCreating] = useState(false)
+  const [previewImage, setPreviewImage] = useState<string | null>(null)
+  const [previewError, setPreviewError] = useState<string | null>(null)
+
+  const getDocUrl = (url: string | null | undefined): string | null => {
+    if (!url) return null
+    if (url.startsWith('http') || url.startsWith('data:') || url.startsWith('blob:')) return url
+    if (url.startsWith('/')) {
+      console.warn('[getDocUrl] Local path detected:', url)
+      return null
+    }
+    return url
+  }
+
+  const handleDocClick = (url: string | null | undefined) => {
+    const fullUrl = getDocUrl(url)
+    if (!fullUrl) {
+      setPreviewError('الصورة مخزنة محلياً ولا يمكن عرضها. يرجى إعادة الرفع من تطبيق ADJIL-BNPL.')
+      return
+    }
+    setPreviewError(null)
+    setPreviewImage(fullUrl)
+  }
 
   // Create form state
   const [newName, setNewName] = useState('')
@@ -31,15 +53,23 @@ export default function Users({ isAdmin = false }: Props) {
   const [newPassword, setNewPassword] = useState('')
   const [newWilaya, setNewWilaya] = useState('')
   const [newRole, setNewRole] = useState<'customer' | 'merchant'>('customer')
+  const [roleFilter, setRoleFilter] = useState<'all' | 'customer' | 'merchant'>('all')
 
   useEffect(() => {
+    console.log('[Users] Loading all users...')
     fetchUsers().then((data) => {
-      setUsers(data.filter((u) => u.role === 'customer'))
+      console.log('[Users] Result:', { total: data.length, roles: [...new Set(data.map(u => u.role))] })
+      if (data.length === 0) {
+        console.warn('[Users] No users returned - check Supabase connection')
+      }
+      setUsers(data)
+    }).catch((err) => {
+      console.error('[Users] Error:', err)
     })
     fetchTransactions().then(setTransactions)
 
     const unsubRealtime = subscribeTable('users', () => {
-      fetchUsers().then((data) => setUsers(data.filter((u) => u.role === 'customer')))
+      fetchUsers().then((data) => setUsers(data))
     })
     const unsubTx = subscribeTable('transactions', () => fetchTransactions().then(setTransactions))
     return () => {
@@ -55,6 +85,10 @@ export default function Users({ isAdmin = false }: Props) {
         .filter(Boolean).join(' ').toLowerCase()
       return hay.includes(q)
     })
+    // Filter by role
+    if (roleFilter !== 'all') {
+      results = results.filter((u) => u.role === roleFilter)
+    }
     if (statusFilter !== 'all') {
       results = results.filter((u) => String(u.status || '').toLowerCase() === statusFilter)
     }
@@ -63,7 +97,7 @@ export default function Users({ isAdmin = false }: Props) {
     }
     const order: Record<string, number> = { pending: 0, active: 1, inactive: 2, frozen: 3, blacklisted: 4 }
     return [...results].sort((a, b) => (order[String(a.status || '').toLowerCase()] ?? 99) - (order[String(b.status || '').toLowerCase()] ?? 99))
-  }, [query, users, statusFilter, wilayaFilter])
+  }, [query, users, statusFilter, wilayaFilter, roleFilter])
 
   const userTxs = useMemo(() => {
     if (!selected) return []
@@ -104,7 +138,7 @@ export default function Users({ isAdmin = false }: Props) {
 
       // Refresh users list
       const data = await fetchUsers()
-      setUsers(data.filter((u) => u.role === 'customer'))
+      setUsers(data)
       setShowCreate(false)
       setNewName('')
       setNewEmail('')
@@ -181,6 +215,12 @@ export default function Users({ isAdmin = false }: Props) {
               <option value="frozen">مجمد</option>
               <option value="blacklisted">محظور</option>
             </select>
+            <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value as any)}
+              className="bg-dark-900 border border-white/5 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-primary transition-all">
+              <option value="all">الكل</option>
+              <option value="customer">الزبائن</option>
+              <option value="merchant">التجار</option>
+            </select>
             <input value={query} onChange={(e) => setQuery(e.target.value)}
               className="bg-dark-900 border border-white/5 rounded-xl px-4 py-2 text-xs text-white outline-none focus:border-primary transition-all placeholder:text-slate-600 w-40"
               placeholder="بحث..." />
@@ -191,6 +231,7 @@ export default function Users({ isAdmin = false }: Props) {
             <thead>
               <tr className="text-slate-500 border-b border-white/5">
                 <th className="text-right py-3 px-2 font-medium">الاسم</th>
+                <th className="text-right py-3 px-2 font-medium">النوع</th>
                 <th className="text-right py-3 px-2 font-medium">الولاية</th>
                 <th className="text-right py-3 px-2 font-medium">الرصيد</th>
                 <th className="text-right py-3 px-2 font-medium">الحد</th>
@@ -202,6 +243,13 @@ export default function Users({ isAdmin = false }: Props) {
                 <tr key={u.id} onClick={() => setSelected(u)}
                   className={`border-b border-white/5 cursor-pointer transition-colors hover:bg-white/5 ${selected?.id === u.id ? 'bg-primary/5' : ''}`}>
                   <td className="py-3 px-2 font-medium text-white">{u.name || '—'}</td>
+                  <td className="py-3 px-2">
+                    <span className={`px-2 py-1 rounded-lg text-[10px] font-bold border ${
+                      u.role === 'merchant' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' : 'bg-purple-500/10 text-purple-400 border-purple-500/20'
+                    }`}>
+                      {u.role === 'merchant' ? 'تاجر' : 'زبون'}
+                    </span>
+                  </td>
                   <td className="py-3 px-2 text-slate-400">{u.wilaya || '—'}</td>
                   <td className="py-3 px-2 text-white">{Number(u.balance || 0).toLocaleString('fr-DZ')} دج</td>
                   <td className="py-3 px-2 text-slate-400">{Number(u.credit_limit || 0).toLocaleString('fr-DZ')} دج</td>
@@ -246,7 +294,82 @@ export default function Users({ isAdmin = false }: Props) {
               <div className="text-white">{Number(selected.credit_limit || 0).toLocaleString('fr-DZ')} دج</div>
               <div className="text-slate-500">الحالة:</div>
               <div>{statusBadge(selected.status)}</div>
+              <div className="text-slate-500 mt-2">النوع:</div>
+              <div className="text-white">{selected.role === 'merchant' ? 'تاجر' : 'زبون'}</div>
             </div>
+
+            {/* Documents Section */}
+            {(selected.doc_id_front || selected.doc_id_back || selected.doc_payslip || selected.doc_rib || selected.doc_commercial_register) && (
+              <div className="pt-3 border-t border-white/5">
+                <div className="font-semibold text-slate-400 mb-2 text-[10px] uppercase tracking-wider">الوثائق</div>
+                <div className="grid grid-cols-2 gap-2">
+                  {selected.doc_id_front && (
+                    <button onClick={() => handleDocClick(selected.doc_id_front)} className="bg-dark-900 border border-white/5 hover:border-primary/30 p-2 rounded-lg text-center cursor-pointer">
+                      <i className="fa-solid fa-id-card text-primary mb-1"></i>
+                      <div className="text-[10px] text-white">بطاقة التعريف</div>
+                    </button>
+                  )}
+                  {selected.doc_payslip && (
+                    <button onClick={() => handleDocClick(selected.doc_payslip)} className="bg-dark-900 border border-white/5 hover:border-green-500/30 p-2 rounded-lg text-center cursor-pointer">
+                      <i className="fa-solid fa-file-invoice-dollar text-green-400 mb-1"></i>
+                      <div className="text-[10px] text-white">كشف الراتب</div>
+                    </button>
+                  )}
+                  {selected.doc_rib && (
+                    <button onClick={() => handleDocClick(selected.doc_rib)} className="bg-dark-900 border border-white/5 hover:border-blue-500/30 p-2 rounded-lg text-center cursor-pointer">
+                      <i className="fa-solid fa-building-columns text-blue-400 mb-1"></i>
+                      <div className="text-[10px] text-white">RIB</div>
+                    </button>
+                  )}
+                  {selected.doc_commercial_register && (
+                    <button onClick={() => handleDocClick(selected.doc_commercial_register)} className="bg-dark-900 border border-white/5 hover:border-yellow-500/30 p-2 rounded-lg text-center cursor-pointer">
+                      <i className="fa-solid fa-store text-yellow-400 mb-1"></i>
+                      <div className="text-[10px] text-white">السجل التجاري</div>
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Document Error Message */}
+            {previewError && (
+              <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 text-center mt-2">
+                <i className="fa-solid fa-exclamation-triangle text-red-400 text-xl mb-2"></i>
+                <div className="text-red-400 text-sm">{previewError}</div>
+              </div>
+            )}
+
+            {/* Image Preview Modal */}
+            {(previewImage || previewError) && (
+              <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => { setPreviewImage(null); setPreviewError(null) }}>
+                <div className="relative max-w-4xl w-full max-h-[90vh] overflow-auto bg-dark-800 rounded-xl p-4" onClick={e => e.stopPropagation()}>
+                  <button onClick={() => { setPreviewImage(null); setPreviewError(null) }} className="absolute top-2 right-2 bg-white/10 hover:bg-white/20 text-white p-2 rounded-lg transition-colors z-10">
+                    <i className="fa-solid fa-xmark text-xl"></i>
+                  </button>
+                  {previewError ? (
+                    <div className="text-center py-12">
+                      <i className="fa-solid fa-exclamation-triangle text-4xl text-yellow-400 mb-4"></i>
+                      <div className="text-yellow-400">{previewError}</div>
+                    </div>
+                  ) : previewImage && (
+                    <img 
+                      src={previewImage} 
+                      alt="Document" 
+                      className="w-full h-auto rounded-lg"
+                      onError={(e) => {
+                        console.warn('[Preview] Failed to load image:', previewImage)
+                        const target = e.target as HTMLImageElement
+                        target.style.display = 'none'
+                        const parent = target.parentElement
+                        if (parent) {
+                          parent.innerHTML = '<div class="text-center text-red-400 p-8"><i class="fa-solid fa-exclamation-triangle text-3xl mb-2"></i><div>تعذر تحميل الصورة - الرابط غير صالح</div></div>'
+                        }
+                      }}
+                    />
+                  )}
+                </div>
+              </div>
+            )}
             
             {isAdmin && (
               <div className="pt-3 border-t border-white/5 space-y-2">
